@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Підсвітити ліхтар LLM v2.1</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --error-color: #e74c3c;
+            --bg-color: #f8f9fa;
+            --panel-bg: #ffffff;
+            --border-radius: 12px;
+            --light-bulb: #f1c40f;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            height: 100vh; overflow: hidden; 
+        }
+
+        .app-container { display: flex; height: 100vh; width: 100%; position: relative; }
+
+        /* --- LOGO --- */
+        .app-logo {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            z-index: 50;
+        }
+
+        .app-logo img {
+            max-width: 120px;
+            width: 18vw;
+            height: auto;
+            display: block;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 400px;
+            background: var(--panel-bg);
+            z-index: 20;
+            display: flex; flex-direction: column;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+            overflow-y: auto; 
+        }
+
+        .sidebar-content {
+            padding: 30px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        /* --- MAP --- */
+        .map-wrapper { flex-grow: 1; position: relative; z-index: 10; background: #1a1a1a; }
+        #map { height: 100%; width: 100%; }
+
+        h3 { margin: 0 0 5px 0; font-weight: 700; font-size: 1.4rem; }
+        .description { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 12px; }
+        .street-row { display: flex; gap: 8px; }
+
+        input, select {
+            padding: 14px;
+            border: 1px solid #e2e6ea;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            background: #fdfdfd;
+            font-family: inherit;
+        }
+
+        #streetPrefix { flex: 0 0 100px; }
+        #streetNamePart { flex: 1; }
+        #cityInput { display: none; } 
+
+        button {
+            border: none; padding: 16px;
+            border-radius: var(--border-radius);
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s ease; font-family: inherit;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        #analyzeBtn { background-color: var(--primary-color); color: white; margin-top: 10px; }
+        #analyzeBtn:hover { background-color: #1a252f; transform: translateY(-1px); }
+        #analyzeBtn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        #lightBtn {
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            display: none;
+            margin-top: 10px;
+            animation: pulse 2s infinite;
+        }
+        #lightBtn:hover { transform: scale(1.02); box-shadow: 0 0 15px rgba(241, 196, 15, 0.4); }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(241, 196, 15, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); }
+        }
+
+        #crossingsBtn { background-color: #95a5a6; color: white; display: none; margin-top: 5px; }
+        #crossingsBtn:hover { background-color: #7f8c8d; }
+
+        #resetBtn {
+            background-color: #fff; 
+            color: var(--error-color); 
+            border: 2px solid var(--error-color);
+            margin-top: 20px;
+        }
+        #resetBtn:hover { background-color: var(--error-color); color: white; }
+
+        #status {
+            margin-top: 10px; padding: 16px;
+            border-radius: var(--border-radius);
+            font-size: 0.95rem; line-height: 1.5;
+            display: none;
+        }
+        
+        .error-msg { background-color: #fadbd8; color: #c0392b; border-left: 4px solid var(--error-color); }
+        .success-msg { background-color: #d4efdf; color: #27ae60; border-left: 4px solid var(--success-color); }
+
+        /* --- RECOMMENDATION CARD --- */
+        #recommendations {
+            display: none; 
+            background: #fff;
+            border: 1px solid #e1e8ed;
+            border-radius: var(--border-radius);
+            padding: 20px; margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            border-top: 4px solid var(--light-bulb);
+        }
+
+        .rec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .rec-title { font-weight: 700; color: #34495e; font-size: 1.1rem; }
+        .rec-item { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
+        .rec-item:last-child { border-bottom: none; margin-bottom: 0; }
+        .rec-label { font-size: 0.8rem; text-transform: uppercase; color: #95a5a6; font-weight: 600; }
+        .rec-value { font-size: 1.05rem; font-weight: 600; color: #2c3e50; }
+
+        /* --- LEAFLET POPUP STYLES --- */
+        .leaflet-popup-content-wrapper { border-radius: 8px; font-family: 'Inter', sans-serif; }
+        .leaflet-popup-content b { color: var(--primary-color); }
+        .info-popup-row { margin-bottom: 4px; font-size: 13px; }
+        .info-popup-label { font-weight: 600; color: #7f8c8d; margin-right: 5px; }
+
+        /* --- MOBILE --- */
+        @media (max-width: 768px) {
+            .app-logo img {
+                max-width: 90px;
+                width: 20vw;
+            }
+
+            .app-container { flex-direction: column; }
+            .map-wrapper { height: 40vh; order: 1; }
+            .sidebar { width: 100%; height: 60vh; order: 2; border-radius: 20px 20px 0 0; margin-top: -15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-logo">
+        <img src="Framelogo.png" alt="Logo">
+    </div>
+    <aside class="sidebar">
+        <div class="sidebar-content">
+            <div>
+                <h3>Підсвітити ліхтар LLM</h3>
+                <div class="description">Введіть назву вулиці</div>
+            </div>
+            
+            <div class="input-group">
+                <input type="hidden" id="cityInput" value="Lviv">
+                
+                <div class="street-row">
+                    <select id="streetPrefix">
+                        <option value="Вулиця">Вул.</option>
+                        <option value="Проспект">Просп.</option>
+                        <option value="Площа">Площа</option>
+                    </select>
+                    <input type="text" id="streetNamePart" value="Коперника" placeholder="Назва">
+                </div>
+            </div>
+
+            <button id="analyzeBtn" onclick="analyzeStreet()">
+                <span>Аналізатор 2.0</span>
+            </button>
+            
+            <div id="recommendations">
+                <div class="rec-header">
+                    <div class="rec-title">Рекомендації</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-label">Щільність забудови</div>
+                    <div class="rec-value" id="rec-density">...</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-label">Колірна температура</div>
+                    <div class="rec-value" id="rec-temp">...</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-label">Тип кріплення</div>
+                    <div class="rec-value" id="rec-mount">...</div>
+                </div>
+            </div>
+
+            <button id="lightBtn" onclick="simulateLighting()">
+                Симуляція
+            </button>
+
+            <button id="crossingsBtn" onclick="findCrossings()">
+                Знайти переходи
+            </button>
+            
+            <div id="results-area">
+                <div id="status"></div>
+                <div id="stats" class="stats"></div>
+            </div>
+
+            <button id="resetBtn" onclick="resetMap()">
+                Скинути карту
+            </button>
+        </div>
+    </aside>
+
+    <main class="map-wrapper">
+        <div id="map"></div>
+    </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+
+<script>
+    // --- НАЛАШТУВАННЯ ---
+    const WIDTH_ERROR = 2.0;    
+    const STEP_METERS = 50;     
+    const MAX_SEARCH_DIST = 40; 
+    const DENSITY_STEP = 10;
+    const BUILDING_SEARCH_RADIUS = 25;
+
+    // //3 Обмеження карти (Львів + трохи околиць)
+    const LVIV_BOUNDS = [
+        [49.75, 23.85], // Південний Захід
+        [49.95, 24.15]  // Північний Схід
+    ];
+
+    let savedAreaId = null;
+    let savedStreetName = null;
+    let savedStreetGeoJSON = null;
+    
+    let globalAnalysis = {
+        avgWidth: 0,
+        highwayType: 'residential',
+        mountType: 'pole', 
+        colorTemp: '3000K'
+    };
+
+    // Ініціалізація карти з обмеженням скролу
+    const map = L.map('map', {
+        maxBounds: LVIV_BOUNDS,
+        maxBoundsViscosity: 1.0 // "Липкі" краї
+    }).setView([49.8419, 24.0315], 13);
+    
+    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OSM contributors'
+    });
+    const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OSM contributors'
+    });
+    
+    // ЗМІНА: Додаємо darkLayer замість lightLayer одразу при старті
+    darkLayer.addTo(map);
+
+    let mainLayer = L.layerGroup().addTo(map);
+    let crossingLayer = L.layerGroup().addTo(map);
+    let buildingLayer = L.layerGroup().addTo(map);
+    let lightsLayer = L.layerGroup().addTo(map); 
+
+    function updateStatus(msg, type = 'normal') {
+        const statusDiv = document.getElementById('status');
+        statusDiv.style.display = 'block';
+        statusDiv.className = ''; 
+        if (type === 'error') {
+            statusDiv.innerHTML = `⚠️ ${msg}`;
+            statusDiv.classList.add('error-msg');
+        } else if (type === 'success') {
+            statusDiv.innerHTML = `✅ ${msg}`;
+            statusDiv.classList.add('success-msg');
+        } else {
+            statusDiv.innerHTML = `//${msg}`;
+        }
+    }
+
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function fetchWithRetry(url, options, retries = 3) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetch(url, options);
+                const text = await response.text();
+                // Check if response is HTML error page from Overpass
+                if (text.trim().startsWith('<') && !text.includes('<osm')) throw new Error("API overloaded");
+                return JSON.parse(text);
+            } catch (err) {
+                if (i === retries - 1) throw err;
+                console.log(`Retry ${i+1}/${retries}...`);
+                await wait(2500); // Трохи довший час очікування
+            }
+        }
+    }
+
+    function resetMap() {
+        mainLayer.clearLayers();
+        buildingLayer.clearLayers();
+        crossingLayer.clearLayers();
+        lightsLayer.clearLayers();
+        
+        savedStreetGeoJSON = null;
+        savedStreetName = null;
+        
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('recommendations').style.display = 'none';
+        document.getElementById('lightBtn').style.display = 'none';
+        document.getElementById('crossingsBtn').style.display = 'none';        
+    }
+    async function analyzeStreet() {
+        const city = document.getElementById('cityInput').value;
+        const namePart = document.getElementById('streetNamePart').value.trim();
+        const btn = document.getElementById('analyzeBtn');
+        if(!city || !namePart || namePart.length < 3) return alert("Перевірте введені дані");
+        btn.disabled = true;
+        updateStatus(`Шукаю "${namePart}"...`);
+
+        try {
+            const nominatimUrl = `https://nominatim.openstreetmap.org/search?city=${city}&format=json&limit=1`;
+            const cityRes = await fetch(nominatimUrl);
+            const cityData = await cityRes.json();
+            
+            if (cityData.length === 0) throw new Error("Місто не знайдено");
+            savedAreaId = 3600000000 + parseInt(cityData[0].osm_id);
+
+            // //2 Збільшено тайм-аут до 180 секунд та додано maxsize
+            const query = `
+                [out:json][timeout:180][maxsize:20000000]; 
+                area(${savedAreaId})->.searchArea;
+                (way["name"~"${namePart}", i]["highway"](area.searchArea);)->.street;
+                (way["highway"~"footway|path|pedestrian|sidewalk"](around.street:${MAX_SEARCH_DIST + 20});)->.sidewalks;
+                (way["building"](around.street:30);)->.buildings;
+                .street out geom;
+                .sidewalks out geom;
+                .buildings out geom;
+            `;
+
+            const data = await fetchWithRetry('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                body: "data=" + encodeURIComponent(query)
+            });
+
+            if (!data.elements || data.elements.length === 0) throw new Error("Вулиця не знайдена.");
+
+            updateStatus("Аналіз геометрії...");
+            setTimeout(() => { processGeometry(data, namePart); }, 100);
+
+        } catch (error) {
+            console.error(error);
+            updateStatus(`Помилка: ${error.message}`, 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function processGeometry(data, searchName) {
+        const streetFeatures = [];
+        const sidewalkFeatures = [];
+        const buildingFeatures = [];
+        let foundFullName = null;
+        
+        let streetMaxLanes = 0;
+        let streetHighwayType = 'residential';
+        let hasTrolleybus = false;
+        const lowerSearch = searchName.toLowerCase();
+
+        data.elements.forEach(el => {
+            if (el.type === 'way' && el.geometry) {
+                const coords = el.geometry.map(p => [p.lon, p.lat]);
+                
+                if (el.tags && el.tags.building) {
+                    if (coords.length > 2) {
+                        coords.push(coords[0]);
+                        buildingFeatures.push(turf.polygon([coords], el.tags)); // Зберігаємо теги
+                    }
+                    return;
+                }
+
+                const line = turf.lineString(coords, el.tags);
+                const tags = el.tags || {};
+                const elName = tags.name ? tags.name.toLowerCase() : "";
+                
+                const isStreet = elName.includes(lowerSearch) && tags.highway && !tags.highway.match(/footway|path|pedestrian|cycleway/);
+
+                if (isStreet) {
+                    streetFeatures.push(line);
+                    if (!foundFullName) foundFullName = tags.name;
+                    if (tags.highway) streetHighwayType = tags.highway;
+                    if (tags.lanes) {
+                        const l = parseInt(tags.lanes);
+                        if (!isNaN(l) && l > streetMaxLanes) streetMaxLanes = l;
+                    }
+                    if (tags.trolley_wire === 'yes' || tags.trolleybus === 'yes') hasTrolleybus = true;
+                } else if (tags.highway) {
+                    sidewalkFeatures.push(line);
+                }
+            }
+        });
+
+        if (streetFeatures.length === 0) return alert("Вулиця не знайдена.");
+        
+        savedStreetName = foundFullName;
+        savedStreetGeoJSON = turf.featureCollection(streetFeatures);
+
+        // 1. Аналіз забудови
+        const density = calculateDensity(streetFeatures, buildingFeatures);
+
+        // 2. Аналіз ширини
+        let totalWidth = 0;
+        let measurements = 0;
+        
+        streetFeatures.forEach(streetLine => {
+            const length = turf.length(streetLine, {units: 'meters'});
+            for (let dist = 10; dist < length - 10; dist += STEP_METERS) {
+                const pointOnStreet = turf.along(streetLine, dist, {units: 'meters'});
+                const pointAhead = turf.along(streetLine, dist + 5, {units: 'meters'});
+                const streetBearing = turf.bearing(pointOnStreet, pointAhead);
+                
+                let leftP = null, rightP = null;
+                let minL = MAX_SEARCH_DIST, minR = MAX_SEARCH_DIST;
+
+                sidewalkFeatures.forEach(sw => {
+                    const snapped = turf.nearestPointOnLine(sw, pointOnStreet, {units: 'meters'});
+                    const d = snapped.properties.dist;
+                    if (d > MAX_SEARCH_DIST || d < 2) return;
+                    
+                    const bearingToSW = turf.bearing(pointOnStreet, snapped);
+                    let rel = bearingToSW - streetBearing;
+                    while (rel < -180) rel += 360; while (rel > 180) rel -= 360;
+
+                    if (rel < -45 && rel > -135) { if (d < minL) { minL = d; leftP = snapped; } }
+                    else if (rel > 45 && rel < 135) { if (d < minR) { minR = d; rightP = snapped; } }
+                });
+
+                if (leftP && rightP) {
+                    const w = turf.distance(leftP, rightP, {units: 'meters'}) + WIDTH_ERROR;
+                    totalWidth += w;
+                    measurements++;
+                    
+                    // //1 Інтерактивна лінія ширини
+                    const poly = L.polyline([
+                        [leftP.geometry.coordinates[1], leftP.geometry.coordinates[0]], 
+                        [rightP.geometry.coordinates[1], rightP.geometry.coordinates[0]]
+                    ], {color: '#e74c3c', weight: 2, opacity: 0.5});
+
+                    poly.bindPopup(`
+                        <div class="info-popup-row"><span class="info-popup-label">Розрахункова ширина:</span><b>${w.toFixed(2)} м</b></div>
+                        <div class="info-popup-row"><span class="info-popup-label">Відступ ліворуч:</span>${minL.toFixed(1)} м</div>
+                        <div class="info-popup-row"><span class="info-popup-label">Відступ праворуч:</span>${minR.toFixed(1)} м</div>
+                    `);
+                    poly.addTo(mainLayer);
+                }
+            }
+        });
+
+        const avgWidth = measurements > 0 ? (totalWidth / measurements) : 8; 
+
+        globalAnalysis.avgWidth = avgWidth;
+        globalAnalysis.highwayType = streetHighwayType;
+        
+        let recs = generateRecommendationsData(streetHighwayType, streetMaxLanes, hasTrolleybus, density);
+        globalAnalysis.mountType = recs.mountType; 
+        globalAnalysis.colorTemp = recs.colorTemp;
+
+        // //1 Інтерактивна лінія вулиці
+        L.geoJSON(savedStreetGeoJSON, { 
+            style: { color: '#3498db', weight: 5, opacity: 0.6 },
+            onEachFeature: function(feature, layer) {
+                let p = feature.properties;
+                layer.bindPopup(`
+                    <div class="info-popup-row"><span class="info-popup-label">Вулиця:</span><b>${p.name || savedStreetName}</b></div>
+                    <div class="info-popup-row"><span class="info-popup-label">Тип:</span>${p.highway}</div>
+                    <div class="info-popup-row"><span class="info-popup-label">Покриття:</span>${p.surface || 'невідомо'}</div>
+                `);
+            }
+        }).addTo(mainLayer);
+
+        if(buildingFeatures.length > 0) L.geoJSON(turf.featureCollection(buildingFeatures), { style: { color: '#555', weight: 1, fillOpacity: 0.1 } }).addTo(buildingLayer);
+
+        const bbox = turf.bbox(savedStreetGeoJSON);
+        map.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
+        
+        document.getElementById('lightBtn').style.display = 'block';
+        document.getElementById('crossingsBtn').style.display = 'block';
+        updateStatus(`Додано: ${foundFullName}. Ширина: ${avgWidth.toFixed(1)}м`, 'success');
+    }
+
+    function calculateDensity(streetLines, buildingPolys) {
+        if (buildingPolys.length === 0) return 0;
+        const buildingPoints = buildingPolys.map(poly => turf.centroid(poly));
+        let total = 0, double = 0;
+        streetLines.forEach(line => {
+            const len = turf.length(line, {units: 'meters'});
+            for (let d = 5; d < len - 5; d += DENSITY_STEP) {
+                total++;
+                const p1 = turf.along(line, d, {units: 'meters'});
+                const p2 = turf.along(line, d + 1, {units: 'meters'});
+                const bearing = turf.bearing(p1, p2);
+                let l = false, r = false;
+                buildingPoints.forEach(bp => {
+                    if (turf.distance(p1, bp, {units: 'meters'}) <= BUILDING_SEARCH_RADIUS) {
+                        let rel = turf.bearing(p1, bp) - bearing;
+                        while (rel < -180) rel += 360; while (rel > 180) rel -= 360;
+                        if (rel < 0) l = true; else r = true;
+                    }
+                });
+                if (l && r) double++;
+            }
+        });
+        return total > 0 ? Math.round((double / total) * 100) : 0;
+    }
+
+    function generateRecommendationsData(type, lanes, trolley, density) {
+        const card = document.getElementById('recommendations');
+        
+        let temp = "3000K", tempColor = "#ffb74d"; 
+        let reasonT = "Житлова вулиця";
+        if (['primary', 'trunk'].includes(type)) { 
+            temp = "4000K"; tempColor = "#f5f5f5"; reasonT = "Магістраль"; 
+        }
+
+        let mount = "Підвісне";
+        let mountCode = "suspended";
+        let usePoles = false;
+        if (lanes > 3 || trolley || density < 30) usePoles = true;
+        
+        if (usePoles) { mount = "Опори"; mountCode = "pole"; }
+
+        document.getElementById('rec-density').innerHTML = `${density}% <small>(Потрібно >30% для підвісу)</small>`;
+        document.getElementById('rec-temp').innerText = `${temp} (${reasonT})`;
+        document.getElementById('rec-mount').innerText = mount;
+        
+        card.style.display = 'block';
+
+        return { mountType: mountCode, colorTemp: temp };
+    }
+
+    // --- ЛОГІКА СИМУЛЯЦІЇ ---
+    function preprocessDualCarriageways(features) {
+        let processedFeatures = [];
+        let usedIndices = new Set();
+        const MERGE_DIST = 25; 
+
+        features.sort((a, b) => turf.length(b) - turf.length(a));
+
+        for (let i = 0; i < features.length; i++) {
+            if (usedIndices.has(i)) continue;
+
+            const lineA = features[i];
+            let foundPair = false;
+
+            for (let j = i + 1; j < features.length; j++) {
+                if (usedIndices.has(j)) continue;
+
+                const lineB = features[j];
+                const midA = turf.along(lineA, turf.length(lineA) / 2);
+                const nearPointOnB = turf.nearestPointOnLine(lineB, midA);
+                const dist = nearPointOnB.properties.dist * 1000; 
+
+                if (dist < MERGE_DIST && dist > 4) {
+                    const medianLine = createMedianLine(lineA, lineB);
+                    if (medianLine) {
+                        medianLine.properties.isMedian = true; 
+                        processedFeatures.push(medianLine);
+                        
+                        usedIndices.add(i);
+                        usedIndices.add(j);
+                        foundPair = true;
+                        break; 
+                    }
+                }
+            }
+
+            if (!foundPair) {
+                processedFeatures.push(lineA);
+                usedIndices.add(i);
+            }
+        }
+        return processedFeatures;
+    }
+
+    function createMedianLine(line1, line2) {
+        const coords = [];
+        const length = turf.length(line1);
+        const steps = Math.max(10, Math.floor(length / 10)); 
+        
+        for (let k = 0; k <= steps; k++) {
+            const p1 = turf.along(line1, (length / steps) * k);
+            const p2 = turf.nearestPointOnLine(line2, p1);
+            const mid = turf.midpoint(p1, p2);
+            coords.push(mid.geometry.coordinates);
+        }
+        if (coords.length > 1) return turf.lineString(coords);
+        return null;
+    }
+
+    function drawDoubleArmLight(pos, r, color, height) {
+        // Оновлено: додана інтерактивність для центральної точки
+        drawLightBase(pos, r, color);
+        addInteractiveMarker(pos, "Дворіжкова опора", height);
+    }
+
+    function simulateLighting() {
+        if (map.hasLayer(lightLayer)) map.removeLayer(lightLayer);
+        if (typeof darkLayer !== 'undefined') darkLayer.addTo(map);
+        const rawFeatures = savedStreetGeoJSON.features;
+        const intelligentFeatures = preprocessDualCarriageways(rawFeatures);
+        
+        updateStatus(`Симуляція: додано світло для "${savedStreetName}"`);
+
+        let placedLights = []; 
+        const COLLISION_THRESHOLD = 12; 
+
+        intelligentFeatures.forEach(feature => {
+            const props = feature.properties;
+            const isMedian = props.isMedian;
+            const length = turf.length(feature, {units: 'meters'});
+            
+            let W = props.originalWidth || globalAnalysis.avgWidth || 8; 
+            let H;
+            
+            if (globalAnalysis.mountType === 'suspended') {
+                H = 8.0; 
+            } else if (isMedian) {
+                H = 10.0;
+            } else {
+                H = Math.max(6, Math.min(10, W));
+            }
+
+            let spacingRatio = (W < 8) ? 4.0 : 4.5; 
+            let S = H * spacingRatio;
+
+            let arrangement;
+            const ratio = W / H;
+
+            if (isMedian) {
+                arrangement = 'median_double';
+                S = H * 4.0; 
+            } else if (globalAnalysis.mountType === 'suspended') {
+                arrangement = 'axis'; 
+                S = H * 3.5; 
+            } else {
+                if (ratio <= 1.0) { arrangement = 'single'; } 
+                else if (ratio <= 1.5) { arrangement = 'staggered'; } 
+                else { arrangement = 'opposite'; }
+            }
+
+            let visualRadius = H * 1.7;
+            if (!isMedian && visualRadius > W * 1.5) visualRadius = W * 1.5; 
+            
+            const color = globalAnalysis.colorTemp.includes('4000') ? '#eefaff' : '#ffb74d'; 
+
+            for (let d = S / 2; d < length; d += S) {
+                const centerP = turf.along(feature, d, {units: 'meters'});
+                const nextP = turf.along(feature, d + 1, {units: 'meters'});
+                const bearing = turf.bearing(centerP, nextP);
+
+                const tryPlaceLight = (point, type) => {
+                    if (!isTooClose(point, placedLights, COLLISION_THRESHOLD)) {
+                        drawLight(point, visualRadius, color, type, H); 
+                        placedLights.push(point);
+                    }
+                };
+
+                const offsetDist = (W / 2) + 0.5; 
+
+                switch (arrangement) {
+                    case 'median_double':
+                        drawDoubleArmLight(centerP, visualRadius, color, H); 
+                        placedLights.push(centerP);
+                        break;
+                    case 'axis':
+                        tryPlaceLight(centerP, 'suspended');
+                        break;
+                    case 'single':
+                        const pSingle = turf.destination(centerP, offsetDist / 1000, bearing + 90, {units: 'kilometers'});
+                        tryPlaceLight(pSingle, 'pole');
+                        break;
+                    case 'staggered':
+                        const sideAngle = (Math.floor(d/S) % 2 === 0) ? 90 : -90;
+                        const pStag = turf.destination(centerP, offsetDist / 1000, bearing + sideAngle, {units: 'kilometers'});
+                        tryPlaceLight(pStag, 'pole');
+                        break;
+                    case 'opposite':
+                        const pLeft = turf.destination(centerP, offsetDist / 1000, bearing - 90, {units: 'kilometers'});
+                        const pRight = turf.destination(centerP, offsetDist / 1000, bearing + 90, {units: 'kilometers'});
+                        tryPlaceLight(pLeft, 'pole');
+                        tryPlaceLight(pRight, 'pole');
+                        break;
+                }
+            }
+        });
+    }
+
+    function isTooClose(newPoint, existingPoints, threshold) {
+        for (let pt of existingPoints) {
+            const dist = turf.distance(newPoint, pt, {units: 'meters'});
+            if (dist < threshold) return true;
+        }
+        return false;
+    }
+
+    function drawLight(pos, radius, color, type, height) {
+        drawLightBase(pos, radius, color);
+        // //1 Додаємо інтерактивність
+        addInteractiveMarker(pos, type === 'suspended' ? 'Підвісний' : 'Опора', height);
+    }
+
+    function drawLightBase(pos, radius, color) {
+        const lat = pos.geometry.coordinates[1];
+        const lng = pos.geometry.coordinates[0];
+
+        // Велика пляма світла (неінтерактивна)
+        L.circle([lat, lng], {
+            radius: radius,
+            color: 'transparent',
+            fillColor: color,
+            fillOpacity: 0.15, 
+            interactive: false
+        }).addTo(lightsLayer);
+
+        // Менша пляма (неінтерактивна)
+        L.circle([lat, lng], {
+            radius: radius * 0.6, 
+            color: 'transparent',
+            fillColor: color,
+            fillOpacity: 0.3,
+            interactive: false
+        }).addTo(lightsLayer);
+    }
+
+    function addInteractiveMarker(pos, typeName, height) {
+        const lat = pos.geometry.coordinates[1];
+        const lng = pos.geometry.coordinates[0];
+
+        // Точка самого світильника (клікабельна)
+        const marker = L.circleMarker([lat, lng], {
+            radius: 4,
+            color: '#333',
+            weight: 1,
+            fillColor: '#fff',
+            fillOpacity: 1,
+            interactive: true
+        });
+
+        marker.bindPopup(`
+            <div class="info-popup-row"><span class="info-popup-label">Тип:</span><b>${typeName}</b></div>
+            <div class="info-popup-row"><span class="info-popup-label">Температура:</span>${globalAnalysis.colorTemp}</div>
+            <div class="info-popup-row"><span class="info-popup-label">Висота:</span>~${height.toFixed(1)} м</div>
+            <div class="info-popup-row" style="color:#aaa; font-size:11px; margin-top:5px;">Симуляція</div>
+        `);
+        
+        marker.addTo(lightsLayer);
+    }
+
+    async function findCrossings() {
+        if (!savedAreaId || !savedStreetName) return;
+        updateStatus(`Шукаю переходи для ${savedStreetName}...`);
+        
+        // Збільшено тайм-аут
+        const query = `[out:json][timeout:60];area(${savedAreaId})->.searchArea;way["name"="${savedStreetName}"]["highway"](area.searchArea)->.street;node["highway"="crossing"](around.street:2);out geom;`;
+        
+        const data = await fetchWithRetry('https://overpass-api.de/api/interpreter', {method: 'POST', body: "data=" + encodeURIComponent(query)});
+        if (!data.elements) return updateStatus("Не знайдено.");
+        const streetLines = savedStreetGeoJSON.features; 
+        let count = 0;
+        data.elements.forEach(el => {
+            if (el.type === 'node') {
+                const p = turf.point([el.lon, el.lat]);
+                let minD = Infinity;
+                streetLines.forEach(l => {
+                    const d = turf.pointToLineDistance(p, l, {units: 'meters'});
+                    if(d<minD) minD = d;
+                });
+                if(minD <= 2) {
+                    const mk = L.marker([el.lat, el.lon], {icon: L.divIcon({className: 'crossing-icon', html: '🚶', iconSize: [24, 24]})});
+                    mk.bindPopup("<b>Пішохідний перехід</b>");
+                    mk.addTo(crossingLayer);
+                    count++;
+                }
+            }
+        });
+        updateStatus(`Знайдено переходів: ${count}`, 'success');
+    }
+</script>
+
+</body>
+</html>
