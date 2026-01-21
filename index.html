@@ -63,6 +63,44 @@
         }
         #streetNamePart::placeholder { color: #8e8e8e; }
 
+        /* --- НОВІ СТИЛІ ДЛЯ ВИПАДАЮЧОГО СПИСКУ --- */
+        .suggestions-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #303030;
+            border: 1px solid #424242;
+            border-radius: 0 0 12px 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10000;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: none;
+            margin-top: 10px; /* Відступ від поля */
+        }
+
+        .suggestions-list li {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #424242;
+            font-size: 14px;
+            color: #ececec;
+            transition: background 0.2s;
+        }
+
+        .suggestions-list li:hover {
+            background-color: #424242;
+        }
+
+        .suggestions-list li:last-child {
+            border-bottom: none;
+        }
+        /* ------------------------------------------ */
+
         .icon-btn {
             background: transparent; border: none; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
@@ -88,7 +126,7 @@
         .map-container.active { opacity: 1; visibility: visible; }
         #map { width: 100%; height: 100%; background: #111; }
         .map-logo { position: absolute; top: 20px; right: 20px; z-index: 1000; }
-        .map-logo img { width: 50px; }
+        .map-logo img { width: 100px; }
 
         /* --- НИЖНЯ ПАНЕЛЬ (LIQUID GLASS STYLE) --- */
         .bottom-panel {
@@ -286,7 +324,10 @@
                 <option value="Проспект">Просп.</option>
                 <option value="Площа">Площа</option>
             </select>
-            <input type="text" id="streetNamePart" placeholder="Введи назву вулиці у Львові, наприклад: Матейка" autocomplete="off">
+            <div style="position: relative; flex-grow: 1;">
+                <input type="text" id="streetNamePart" placeholder="Ввести назву вулиці" autocomplete="off">
+                <ul id="suggestionsList" class="suggestions-list"></ul>
+            </div>
         </div>
 
         <div style="display: flex; gap: 8px;">
@@ -301,7 +342,7 @@
 <div class="map-container" id="mapContainer">
     <div class="map-logo">
         <a href="https://pidsvitu.com">
-            <img src="logoX.png" alt="Logo">
+            <img src="Framelogo.png" alt="Logo">
         </a>
     </div>
     <main class="map-wrapper" style="width: 100%; height: 100%;">
@@ -357,7 +398,7 @@
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
 <script>
-    // --- JS ЛОГІКА (БЕЗ ЗМІН) ---
+    // --- JS ЛОГІКА (БЕЗ ЗМІН ОСНОВНОГО ФУНКЦІОНАЛУ) ---
     const WIDTH_ERROR = 2.0;    
     const STEP_METERS = 50;     
     const MAX_SEARCH_DIST = 40; 
@@ -435,6 +476,10 @@
         document.getElementById('recommendations').style.display = 'none';
         document.getElementById('lightBtn').style.display = 'none';
         document.getElementById('crossingsBtn').style.display = 'none';
+
+        // --- NEW: Ховаємо список підказок при скиданні ---
+        document.getElementById('suggestionsList').style.display = 'none'; 
+        // ----------------------------------------------------
 
         document.getElementById('mapContainer').classList.remove('active');
         document.getElementById('bottomPanel').classList.remove('active');
@@ -745,10 +790,62 @@
     }
 
     document.getElementById('streetNamePart').addEventListener('keypress', function(e) { if (e.key === 'Enter') analyzeStreet(); });
+
+    // --- НОВА ЛОГІКА ДЛЯ АВТОДОПОВНЕННЯ (AUTOCOMPLETE) ---
+    const streetInput = document.getElementById('streetNamePart');
+    const suggestionsList = document.getElementById('suggestionsList');
+    let debounceTimer;
+
+    streetInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        const city = document.getElementById('cityInput').value || 'Львів'; 
+        clearTimeout(debounceTimer);
+        suggestionsList.style.display = 'none';
+
+        if (query.length < 3) return;
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                // Використовуємо Nominatim з пошуком по місту
+                const url = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&format=json&limit=5&dedupe=1`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // Фільтруємо унікальні імена
+                const uniqueStreets = [...new Set(data.map(item => item.name).filter(name => name))];
+                renderSuggestions(uniqueStreets);
+            } catch (error) {
+                console.error("Помилка при пошуку вулиць:", error);
+            }
+        }, 250);
+    });
+
+    function renderSuggestions(streets) {
+        suggestionsList.innerHTML = '';
+        if (streets.length === 0) {
+            suggestionsList.style.display = 'none';
+            return;
+        }
+        streets.forEach(streetName => {
+            const li = document.createElement('li');
+            li.textContent = streetName;
+            li.addEventListener('click', () => {
+                streetInput.value = streetName;
+                suggestionsList.style.display = 'none';
+                // Опціонально: можна розкоментувати, щоб шукало відразу після кліку
+                // analyzeStreet(); 
+            });
+            suggestionsList.appendChild(li);
+        });
+        suggestionsList.style.display = 'block';
+    }
+
+    // Закриття списку при кліку поза ним
+    document.addEventListener('click', (e) => {
+        if (!streetInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+            suggestionsList.style.display = 'none';
+        }
+    });
 </script>
 </body>
 </html>
-
-
-
-
