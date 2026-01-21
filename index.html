@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Підсвітити ліхтар AI</title>
+    <title>Підсвітити ліхтар AI (Liquid Glass UI)</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -128,13 +128,13 @@
             font-weight: 600;
         }
 
-        /* Статус */
+        /* Статус - ПРИХОВАНО за запитом */
         #status {
+            display: none !important;
             margin-bottom: 20px;
             font-size: 14px;
             padding: 10px 14px;
             border-radius: 12px;
-            display: inline-block;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
@@ -156,8 +156,28 @@
             margin-top: 20px;
         }
 
-        .rec-header { margin-bottom: 15px; }
+        .rec-header { 
+            margin-bottom: 15px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
         .rec-title { font-size: 18px; font-weight: 700; color: #fff; }
+
+        /* Стиль для нової кнопки "Детальніше" */
+        .details-btn {
+            font-size: 13px;
+            color: #9ca3af;
+            background: rgba(255,255,255,0.05);
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        .details-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
 
         /* Стиль "Картки" для кожного пункту */
         .rec-item {
@@ -292,12 +312,13 @@
 <div class="bottom-panel" id="bottomPanel">
     <div class="panel-content">
         <div class="panel-section">
-            <div class="panel-title">Алгоритм "Підсвітити ліхтар AI"</div>
+            <div class="panel-title">Результати аналізу</div>
             <div id="status">Очікування...</div>
             
             <div id="recommendations">
                 <div class="rec-header">
                     <div class="rec-title">Рекомендації</div>
+                    <a href="https://gemini.google.com/share/66254caec02b" target="_blank" class="details-btn">Детальніше</a>
                 </div>
                 <div class="rec-item">
                     <div class="rec-label">Щільність забудови</div>
@@ -373,7 +394,7 @@
 
     function updateStatus(msg, type = 'normal') {
         const statusDiv = document.getElementById('status');
-        statusDiv.style.display = 'inline-block';
+        // statusDiv.style.display = 'inline-block'; // Закоментовано логікою CSS !important
         statusDiv.className = ''; 
         if (type === 'error') {
             statusDiv.innerHTML = `⚠️ ${msg}`;
@@ -410,7 +431,7 @@
         if (lightsLayer) lightsLayer.clearLayers();
         savedStreetGeoJSON = null; savedStreetName = null;
         
-        document.getElementById('status').style.display = 'none';
+        // document.getElementById('status').style.display = 'none'; // Вже сховано через CSS
         document.getElementById('recommendations').style.display = 'none';
         document.getElementById('lightBtn').style.display = 'none';
         document.getElementById('crossingsBtn').style.display = 'none';
@@ -727,8 +748,5 @@
 </script>
 </body>
 </html>
-
-
-
 
 
