@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="
+     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'unsafe-inline' 'unsafe-eval' 
             https://unpkg.com 
             https://cdnjs.cloudflare.com 
             https://www.gstatic.com 
             https://www.google.com
+            https://www.gstatic.com/recaptcha/
+            https://www.google.com/recaptcha/
             https://static.cloudflareinsights.com;
         style-src 'self' 'unsafe-inline' 
             https://unpkg.com 
@@ -26,7 +28,11 @@
             https://firestore.googleapis.com
             https://securetoken.googleapis.com 
             https://unpkg.com 
-            https://www.gstatic.com;
+            https://www.gstatic.com
+            https://www.google.com/recaptcha/;
+        frame-src 
+            https://www.google.com/recaptcha/
+            https://recaptcha.google.com/recaptcha/;
         img-src 'self' data: blob: https: http:;
     ">
     <title>Підсвітити ліхтар AI</title>
@@ -154,3 +160,4 @@
 
 </body>
 </html>
+
