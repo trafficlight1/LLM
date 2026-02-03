@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdnjs.cloudflare.com https://www.gstatic.com https://www.google.com;
+    style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self' https://nominatim.openstreetmap.org https://overpass-api.de https://*.firebaseio.com https://*.googleapis.com https://securetoken.googleapis.com https://unpkg.com https://www.gstatic.com;
+    img-src 'self' data: blob: https://*.openstreetmap.org https://*.tile.openstreetmap.org https://unpkg.com https://*.basemaps.cartocdn.com;">
     <title>Підсвітити ліхтар AI</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -127,5 +134,6 @@
 
 </body>
 </html>
+
 
 
