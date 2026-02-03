@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" 
+      content="default-src 'self'; 
+               script-src 'self' https://www.gstatic.com https://www.google.com; 
+               connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;
+               img-src 'self' data:;">
     <title>Підсвітити ліхтар AI</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -55,7 +60,7 @@
 <div class="map-container" id="mapContainer">
     <div class="map-logo">
         <a href="https://pidsvitu.com">
-            <img src="Frame.png" alt="Logo">
+            <img src="Framelogo.png" alt="Logo">
         </a>
     </div>
     <main class="map-wrapper" style="width: 100%; height: 100%;">
@@ -119,10 +124,11 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 
 <script src="script.js"></script>
 
 </body>
-
 </html>
-
