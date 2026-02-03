@@ -1,13 +1,3 @@
-const firebaseConfig = {
-    apiKey: "AIzaSyA777OVFMDEgGDyf5BbKSkwbweBLOputZ0",
-    authDomain: "pidsvituai.firebaseapp.com",
-    projectId: "pidsvituai",
-    storageBucket: "pidsvituai.firebasestorage.app",
-    messagingSenderId: "291103271838",
-    appId: "1:291103271838:web:7df3b779433dc4c583c48f",
-    measurementId: "G-8BR4E3W54K"
-};
-
 let db = null;
 
 const requestCache = new Map();
@@ -31,17 +21,30 @@ async function rateLimitedRequest(key, requestFn) {
 
 document.addEventListener('DOMContentLoaded', function() {
     try {
-        firebase.initializeApp(firebaseConfig);
-        if (typeof firebase.appCheck !== 'undefined') {
-            const appCheck = firebase.appCheck();
-            appCheck.activate(
-                '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z', 
-                true
-            );
+        // Ініціалізація Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
+        try {
+            if (typeof firebase.appCheck !== 'undefined') {
+                const appCheck = firebase.appCheck();
+                appCheck.activate(
+                    '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z', 
+                    true // autoRefresh
+                );
+            }
+        } catch (appCheckError) {
+            console.warn('App Check не активовано:', appCheckError);
+        }
+        
         db = firebase.firestore();
+        db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+        });
+        
         testFirebaseConnection();
     } catch (error) {
+        console.error('Помилка ініціалізації Firebase:', error);
         updateStatus("Помилка підключення до бази даних", 'error');
     }
 });
@@ -49,10 +52,11 @@ document.addEventListener('DOMContentLoaded', function() {
 async function testFirebaseConnection() {
     try {
         await db.collection('park').limit(1).get();
+        console.log('✅ З\'єднання з Firebase успішне');
     } catch (error) {
+        console.error('❌ Помилка з\'єднання з Firebase:', error);
     }
 }
-
 const WIDTH_ERROR = 2.0;    
 const STEP_METERS = 50;     
 const MAX_SEARCH_DIST = 40; 
@@ -65,7 +69,15 @@ const UTM_FALSE_EASTING = 500000;
 const UTM_FALSE_NORTHING = 0;
 const UTM_SCALE_FACTOR = 0.9996;
 const EARTH_RADIUS = 6378137;
-
+const firebaseConfig = {
+    apiKey: "AIzaSyA777OVFMDEgGDyf5BbKSkwbweBLOputZ0",
+    authDomain: "pidsvituai.firebaseapp.com",
+    projectId: "pidsvituai",
+    storageBucket: "pidsvituai.firebasestorage.app",
+    messagingSenderId: "291103271838",
+    appId: "1:291103271838:web:7df3b779433dc4c583c48f",
+    measurementId: "G-8BR4E3W54K"
+};
 let savedAreaId = null;
 let savedStreetName = null;
 let savedStreetGeoJSON = null;
@@ -956,3 +968,4 @@ async function forceVisualizeLightsFromFirebase() {
 if (typeof proj4 !== 'undefined') {
     initProj4();
 }
+
