@@ -7,9 +7,6 @@ const firebaseConfig = {
     appId: "1:291103271838:web:7df3b779433dc4c583c48f",
     measurementId: "G-8BR4E3W54K"
 };
-
-// ⚠️ КРИТИЧНО: Це СТАРИЙ ключ який НЕ працює!
-// Вам потрібно створити НОВИЙ в Firebase Console → App Check
 const RECAPTCHA_SITE_KEY = '6Ld15l8sAAAAADBhMOgsNq_oYZZnWKSFOUfh2Dr3';
 
 let db = null;
@@ -45,29 +42,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // 2. Спроба активації App Check
-        if (typeof firebase.appCheck !== 'undefined') {
-            try {
-                const appCheck = firebase.appCheck();
+       // if (typeof firebase.appCheck !== 'undefined') {
+      //      try {
+         //       const appCheck = firebase.appCheck();
                 
                 // ВАЖЛИВО: Використовуємо правильний синтаксис
-                appCheck.activate(
-                    RECAPTCHA_SITE_KEY,
-                    true // isTokenAutoRefreshEnabled
-                );
+          //      appCheck.activate(
+           //         RECAPTCHA_SITE_KEY,
+           //         true // isTokenAutoRefreshEnabled
+           //     );
                 
-                appCheckActivated = true;
-                console.log('✅ App Check активовано');
-                console.log('🔑 Site Key:', RECAPTCHA_SITE_KEY);
+              //  appCheckActivated = true;
+            //    console.log('✅ App Check активовано');
+           //     console.log('🔑 Site Key:', RECAPTCHA_SITE_KEY);
                 
-            } catch (appCheckError) {
-                console.error('❌ Помилка активації App Check:', appCheckError);
-                console.warn('⚠️ Продовжуємо БЕЗ App Check');
-                appCheckActivated = false;
-            }
-        } else {
-            console.error('❌ firebase.appCheck не знайдено!');
-            appCheckActivated = false;
-        }
+          //  } catch (appCheckError) {
+          //      console.error('❌ Помилка активації App Check:', appCheckError);
+         //       console.warn('⚠️ Продовжуємо БЕЗ App Check');
+         //       appCheckActivated = false;
+         //   }
+        //} else {
+      //      console.error('❌ firebase.appCheck не знайдено!');
+       //     appCheckActivated = false;
+      //  }
         
         // 3. Ініціалізація Firestore
         db = firebase.firestore();
@@ -1046,6 +1043,7 @@ async function forceVisualizeLightsFromFirebase() {
 if (typeof proj4 !== 'undefined') {
     initProj4();
 }
+
 
 
 
