@@ -1,3 +1,5 @@
+const RECAPTCHA_SITE_KEY = '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z';
+
 let db = null;
 
 const requestCache = new Map();
@@ -21,40 +23,78 @@ async function rateLimitedRequest(key, requestFn) {
 
 document.addEventListener('DOMContentLoaded', function() {
     try {
-        // Ініціалізація Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
-        try {
-            if (typeof firebase.appCheck !== 'undefined') {
+        
+        // 2. Ініціалізація App Check (ЗАХИСТ!)
+        if (typeof firebase.appCheck !== 'undefined') {
+            try {
                 const appCheck = firebase.appCheck();
                 appCheck.activate(
-                    '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z', 
+                    RECAPTCHA_SITE_KEY,
                     true // autoRefresh
                 );
+                console.log('✅ Firebase App Check активовано');
+            } catch (appCheckError) {
+                console.error('❌ Помилка App Check:', appCheckError);
+                updateStatus("Помилка безпеки. Перезавантажте сторінку.", 'error');
             }
-        } catch (appCheckError) {
-            console.warn('App Check не активовано:', appCheckError);
+        } else {
+            console.error('❌ Firebase App Check не завантажено!');
+            updateStatus("Помилка завантаження модулів безпеки", 'error');
         }
         
         db = firebase.firestore();
+        
+        // 4. Налаштування Firestore
         db.settings({
             cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
         });
         
+        // 5. Офлайн персистентність
+        db.enablePersistence({ synchronizeTabs: true })
+            .then(() => {
+                console.log('✅ Офлайн режим увімкнено');
+            })
+            .catch((err) => {
+                if (err.code === 'failed-precondition') {
+                    console.warn('⚠️ Персистентність вже увімкнена');
+                } else if (err.code === 'unimplemented') {
+                    console.warn('⚠️ Браузер не підтримує персистентність');
+                }
+            });
+        
+        console.log('✅ Firebase повністю ініціалізовано');
         testFirebaseConnection();
+        
     } catch (error) {
-        console.error('Помилка ініціалізації Firebase:', error);
+        console.error('❌ Критична помилка Firebase:', error);
         updateStatus("Помилка підключення до бази даних", 'error');
     }
 });
 
 async function testFirebaseConnection() {
     try {
-        await db.collection('park').limit(1).get();
-        console.log('✅ З\'єднання з Firebase успішне');
+        console.log('🔍 Тестування підключення до Firestore...');
+        const testQuery = await db.collection('park').limit(1).get();
+        console.log('✅ З\'єднання з Firestore успішне');
+        console.log(`📊 Знайдено документів: ${testQuery.size}`);
+        
+        if (testQuery.size > 0) {
+            updateStatus("База даних підключена", 'success');
+        }
     } catch (error) {
-        console.error('❌ Помилка з\'єднання з Firebase:', error);
+        console.error('❌ Помилка Firestore:', error);
+        
+        if (error.code === 'permission-denied') {
+            updateStatus("❌ Доступ заборонено. App Check не налаштовано!", 'error');
+            console.error('Перейдіть в Firebase Console → App Check і увімкніть enforcement');
+        } else if (error.code === 'unavailable') {
+            console.log('📡 Працюємо в офлайн режимі');
+        } else {
+            updateStatus(`⚠️ Помилка: ${error.message}`, 'error');
+        }
     }
 }
 const WIDTH_ERROR = 2.0;    
@@ -968,4 +1008,5 @@ async function forceVisualizeLightsFromFirebase() {
 if (typeof proj4 !== 'undefined') {
     initProj4();
 }
+
 
