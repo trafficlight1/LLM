@@ -10,7 +10,8 @@
             https://cdnjs.cloudflare.com 
             https://www.gstatic.com
             https://www.google.com/recaptcha/
-            https://www.gstatic.com/recaptcha/;
+            https://www.gstatic.com/recaptcha/
+            https://static.cloudflareinsights.com;
         style-src 'self' 'unsafe-inline' 
             https://unpkg.com 
             https://fonts.googleapis.com;
@@ -23,15 +24,19 @@
             https://*.googleapis.com 
             https://firestore.googleapis.com
             https://www.google.com/recaptcha/
-            https://content-firebaseappcheck.googleapis.com;
-        frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/;
+            https://content-firebaseappcheck.googleapis.com
+            https://www.gstatic.com
+            https://unpkg.com
+            https://static.cloudflareinsights.com;
+        frame-src 
+            https://www.google.com/recaptcha/ 
+            https://recaptcha.google.com/recaptcha/;
         img-src 'self' data: blob: https: http:;
     ">
     <title>Підсвітити ліхтар AI</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -45,7 +50,6 @@
     <div class="welcome-title">Підсвітити ліхтар AI</div>
 
     <div class="chatgpt-input-container">
-        
         <div class="input-wrapper">
             <select id="streetPrefix" title="Тип вулиці">
                 <option value="Вулиця">Вул.</option>
@@ -115,7 +119,6 @@
 
         <div class="panel-section">
             <div class="button-group">
-    
                 <div id="simGroup" class="sim-wrapper">
                     <button id="lightBtn" onclick="simulateLighting()">
                         Симуляція ✦
@@ -135,23 +138,23 @@
                 </button>
             </div>
         </div>
-        </div>
     </div>
 </div>
 
 <input type="hidden" id="cityInput" value="Lviv">
 
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
+<!-- Бібліотеки -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
+
+<!-- Основний скрипт -->
 <script src="script.js"></script>
 
 </body>
 </html>
-
-
-
