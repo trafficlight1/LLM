@@ -1,6 +1,19 @@
-const RECAPTCHA_SITE_KEY = '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z';
+const firebaseConfig = {
+    apiKey: "AIzaSyA777OVFMDEgGDyf5BbKSkwbweBLOputZ0",
+    authDomain: "pidsvituai.firebaseapp.com",
+    projectId: "pidsvituai",
+    storageBucket: "pidsvituai.firebasestorage.app",
+    messagingSenderId: "291103271838",
+    appId: "1:291103271838:web:7df3b779433dc4c583c48f",
+    measurementId: "G-8BR4E3W54K"
+};
+
+// ⚠️ КРИТИЧНО: Це СТАРИЙ ключ який НЕ працює!
+// Вам потрібно створити НОВИЙ в Firebase Console → App Check
+const RECAPTCHA_SITE_KEY = '6Ld15l8sAAAAADBhMOgsNq_oYZZnWKSFOUfh2Dr3';
 
 let db = null;
+let appCheckActivated = false;
 
 const requestCache = new Map();
 const RATE_LIMIT = 10;
@@ -23,29 +36,42 @@ async function rateLimitedRequest(key, requestFn) {
 
 document.addEventListener('DOMContentLoaded', function() {
     try {
+        console.log('🚀 Ініціалізація Firebase...');
+        
+        // 1. Ініціалізація Firebase App
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
+            console.log('✅ Firebase App ініціалізовано');
         }
         
-        // 2. Ініціалізація App Check (ЗАХИСТ!)
+        // 2. Спроба активації App Check
         if (typeof firebase.appCheck !== 'undefined') {
             try {
                 const appCheck = firebase.appCheck();
+                
+                // ВАЖЛИВО: Використовуємо правильний синтаксис
                 appCheck.activate(
                     RECAPTCHA_SITE_KEY,
-                    true // autoRefresh
+                    true // isTokenAutoRefreshEnabled
                 );
-                console.log('✅ Firebase App Check активовано');
+                
+                appCheckActivated = true;
+                console.log('✅ App Check активовано');
+                console.log('🔑 Site Key:', RECAPTCHA_SITE_KEY);
+                
             } catch (appCheckError) {
-                console.error('❌ Помилка App Check:', appCheckError);
-                updateStatus("Помилка безпеки. Перезавантажте сторінку.", 'error');
+                console.error('❌ Помилка активації App Check:', appCheckError);
+                console.warn('⚠️ Продовжуємо БЕЗ App Check');
+                appCheckActivated = false;
             }
         } else {
-            console.error('❌ Firebase App Check не завантажено!');
-            updateStatus("Помилка завантаження модулів безпеки", 'error');
+            console.error('❌ firebase.appCheck не знайдено!');
+            appCheckActivated = false;
         }
         
+        // 3. Ініціалізація Firestore
         db = firebase.firestore();
+        console.log('✅ Firestore ініціалізовано');
         
         // 4. Налаштування Firestore
         db.settings({
@@ -65,33 +91,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         
-        console.log('✅ Firebase повністю ініціалізовано');
-        testFirebaseConnection();
+        // 6. Тестування підключення
+        setTimeout(() => {
+            testFirebaseConnection();
+        }, 1000);
         
     } catch (error) {
-        console.error('❌ Критична помилка Firebase:', error);
-        updateStatus("Помилка підключення до бази даних", 'error');
+        console.error('❌ КРИТИЧНА ПОМИЛКА:', error);
+        updateStatus("Помилка ініціалізації", 'error');
     }
 });
 
 async function testFirebaseConnection() {
     try {
-        console.log('🔍 Тестування підключення до Firestore...');
+        console.log('🔍 Тестування Firestore...');
+        
         const testQuery = await db.collection('park').limit(1).get();
-        console.log('✅ З\'єднання з Firestore успішне');
-        console.log(`📊 Знайдено документів: ${testQuery.size}`);
+        
+        console.log('✅ Firestore підключено!');
+        console.log(`📊 Документів знайдено: ${testQuery.size}`);
         
         if (testQuery.size > 0) {
+            console.log('✅ Дані доступні для читання');
             updateStatus("База даних підключена", 'success');
+        } else {
+            console.log('⚠️ Колекція порожня');
         }
+        
     } catch (error) {
         console.error('❌ Помилка Firestore:', error);
+        console.error('Код помилки:', error.code);
+        console.error('Повідомлення:', error.message);
         
         if (error.code === 'permission-denied') {
-            updateStatus("❌ Доступ заборонено. App Check не налаштовано!", 'error');
-            console.error('Перейдіть в Firebase Console → App Check і увімкніть enforcement');
+            console.error('🚫 ДОСТУП ЗАБОРОНЕНО!');
+            console.error('Можливі причини:');
+            console.error('1. App Check enforcement увімкнено, але токен невалідний');
+            console.error('2. Firestore Security Rules блокують доступ');
+            console.error('3. reCAPTCHA ключ неправильний');
+            
+            updateStatus("❌ Доступ заборонено. Перевірте налаштування App Check", 'error');
+            
+            // Показуємо інструкцію користувачу
+            showAppCheckInstructions();
+            
         } else if (error.code === 'unavailable') {
-            console.log('📡 Працюємо в офлайн режимі');
+            console.log('📡 Немає інтернету - офлайн режим');
+            updateStatus("Офлайн режим", 'normal');
+            
         } else {
             updateStatus(`⚠️ Помилка: ${error.message}`, 'error');
         }
@@ -109,15 +156,6 @@ const UTM_FALSE_EASTING = 500000;
 const UTM_FALSE_NORTHING = 0;
 const UTM_SCALE_FACTOR = 0.9996;
 const EARTH_RADIUS = 6378137;
-const firebaseConfig = {
-    apiKey: "AIzaSyA777OVFMDEgGDyf5BbKSkwbweBLOputZ0",
-    authDomain: "pidsvituai.firebaseapp.com",
-    projectId: "pidsvituai",
-    storageBucket: "pidsvituai.firebasestorage.app",
-    messagingSenderId: "291103271838",
-    appId: "1:291103271838:web:7df3b779433dc4c583c48f",
-    measurementId: "G-8BR4E3W54K"
-};
 let savedAreaId = null;
 let savedStreetName = null;
 let savedStreetGeoJSON = null;
@@ -1008,5 +1046,6 @@ async function forceVisualizeLightsFromFirebase() {
 if (typeof proj4 !== 'undefined') {
     initProj4();
 }
+
 
 
