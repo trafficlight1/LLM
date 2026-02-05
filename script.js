@@ -654,7 +654,25 @@ async function processStreetVisualization(data, searchName) {
 
     // ================== ІНТЕГРАЦІЯ З FIREBASE ДЛЯ БУДІВЕЛЬ (ПОШУК ЗА OSM_ID) ==================
     if(buildingFeatures.length > 0) {
-        updateStatus("Перевірка будівель у базі даних...");
+    // КРИТИЧНО: Перевіряємо готовність Firebase
+    if (!db || !firebaseReady) {
+        console.warn("⚠️ Firebase не готовий, візуалізую будівлі без даних БД");
+        
+        // Візуалізуємо всі будівлі як сірі (optimize = 0)
+        L.geoJSON(turf.featureCollection(buildingFeatures), { 
+            style: { 
+                color: '#555', 
+                weight: 1, 
+                fillColor: '#555', 
+                fillOpacity: 0.1 
+            }
+        }).addTo(buildingLayer);
+        
+        updateStatus(`Будівель: ${buildingFeatures.length} (БД недоступна)`);
+        return;
+    }
+    
+    updateStatus("Перевірка будівель у базі даних...");
         
         // Створюємо масив промісів для перевірки кожної будівлі
         const buildingChecks = buildingFeatures.map(async (feature) => {
@@ -1333,3 +1351,4 @@ if (typeof proj4 === 'undefined') {
     initProj4();
 
 }
+
