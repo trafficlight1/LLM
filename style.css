@@ -1,4 +1,3 @@
-/* --- ОСНОВНІ НАЛАШТУВАННЯ --- */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body, html {
@@ -27,13 +26,7 @@ a { text-decoration: none; }
 .welcome-logo img { width: 50px; height: auto; margin-bottom: 20px; opacity: 1; }
 .welcome-title { font-size: 32px; font-weight: 600; margin-bottom: 40px; color: #ffffff; text-align: center; }
 
-/* --- ОСНОВНИЙ КОНТЕЙНЕР --- */
-/* --- ОСНОВНИЙ КОНТЕЙНЕР --- */
-/* --- ОСНОВНИЙ КОНТЕЙНЕР --- */
-/* --- ОСНОВНИЙ КОНТЕЙНЕР --- */
-/* --- ОСНОВНИЙ КОНТЕЙНЕР --- */
-/* --- ОСНОВНИЙ КОНТЕЙНЕР --- */
-/* --- ОСНОВНИЙ КОНТЕЙНЕР --- */
+
 .chatgpt-input-container {
     width: 100%; 
     max-width: 768px;
@@ -43,50 +36,41 @@ a { text-decoration: none; }
     align-items: center; 
     gap: 10px;
     
-    border-radius: 26px; 
+    border-radius: 24px;
     
     position: relative; 
     z-index: 0; 
     
-    /* Тінь блоку */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     transition: all 0.3s ease;
 }
 
-/* --- 1. ШАР ПУЛЬСАЦІЇ ( ::before ) --- */
 .chatgpt-input-container::before {
     content: '';
     position: absolute;
     z-index: -2;
     
-    /* Розміри трохи більші за блок */
     top: -3px; left: -3px; right: -3px; bottom: -3px;
-    border-radius: 30px;
+    border-radius: 27px;
     
-    /* Градієнт "Магма" */
     background: linear-gradient(45deg, #ff4500, #ffcc00, #ff4500);
     background-size: 200% 200%;
     
-    /* Анімація біжить постійно */
     animation: pulse-glow 6s ease-in-out infinite;
     
-    /* Початковий стан: видно */
     opacity: 0.7;
     filter: blur(15px);
     
-    /* ВАЖЛИВО: Плавний перехід для зникнення */
     transition: opacity 0.5s ease, filter 0.5s ease;
 }
 
-/* --- 2. ШАР СКЛА ( ::after ) --- */
 .chatgpt-input-container::after {
     content: '';
     position: absolute;
     z-index: -1;
     inset: 0;
-    border-radius: 20px;
+    border-radius: 24px;
     
-    /* Ефект скла */
     background: rgba(40, 40, 40, 0.6); 
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -97,19 +81,14 @@ a { text-decoration: none; }
     transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-/* --- ПОВЕДІНКА ПРИ НАТИСКАННІ (FOCUS) --- */
-
-/* 1. Анімація плавно розчиняється (але не зупиняється різко!) */
 .chatgpt-input-container:focus-within::before {
-    opacity: 0;        /* Повна прозорість */
-    filter: blur(0px); /* Прибираємо розмиття, щоб не заважало */
-    /* animation: none; <--- ПРИБРАЛИ ЦЕЙ РЯДОК, ЩОБ НЕ БУЛО РИВКА */
+    opacity: 0;
+    filter: blur(0px);
 }
 
-/* 2. Змінюємо вигляд скла на більш темний і зручний для читання */
 .chatgpt-input-container:focus-within::after {
-    background: rgba(30, 30, 30, 0.95); /* Майже непрозорий фон */
-    border-color: rgba(255, 204, 0, 0.3); /* Легка жовта рамка */
+    background: rgba(30, 30, 30, 0.95);
+    border-color: rgba(255, 204, 0, 0.3);
 }
 
 .chatgpt-input-container:focus-within {
@@ -117,7 +96,6 @@ a { text-decoration: none; }
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* --- АНІМАЦІЯ --- */
 @keyframes pulse-glow {
     0% { opacity: 0.5; filter: blur(8px); background-position: 0% 50%; }
     50% { opacity: 0.8; filter: blur(14px); background-position: 100% 50%; }
@@ -137,43 +115,137 @@ a { text-decoration: none; }
 }
 #streetNamePart::placeholder { color: #8e8e8e; }
 
-/* --- НОВІ СТИЛІ ДЛЯ ВИПАДАЮЧОГО СПИСКУ --- */
 .suggestions-list {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
-    background: #000000;
-    border: 1px solid #424242;
-    border-radius: 0 0 12px 12px;
-    max-height: 200px;
+    
+    background: rgba(20, 20, 20, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    
+    max-height: 280px;
     overflow-y: auto;
     z-index: 10000;
+    
     list-style: none;
-    padding: 0;
+    padding: 8px;
     margin: 0;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    
     display: none;
-    margin-top: 10px; /* Відступ від поля */
+    
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.suggestions-list.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .suggestions-list li {
     padding: 12px 16px;
+    margin-bottom: 4px;
     cursor: pointer;
-    border-bottom: 1px solid #424242;
-    font-size: 14px;
-    color: #ececec;
-    transition: background 0.2s;
+    
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    line-height: 1.4;
 }
 
 .suggestions-list li:hover {
-    background-color: #424242;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    transform: translateX(4px);
+    
+    box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.suggestions-list li:active {
+    transform: scale(0.98) translateX(4px);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .suggestions-list li:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
 }
-/* ------------------------------------------ */
+
+.suggestions-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.suggestions-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    margin: 8px 0;
+}
+
+.suggestions-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    transition: background 0.2s;
+}
+
+.suggestions-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.suggestions-list li.empty-state {
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+    cursor: default;
+    font-size: 14px;
+    padding: 20px;
+}
+
+.suggestions-list li.empty-state:hover {
+    background: transparent;
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
+
+.suggestions-list li.category-header {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 600;
+    padding: 8px 16px 4px;
+    cursor: default;
+    background: transparent;
+    pointer-events: none;
+}
+
+.suggestions-list li.category-header:hover {
+    background: transparent;
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+}
 .quick-actions {
     display: flex;
     justify-content: center;
@@ -182,57 +254,60 @@ a { text-decoration: none; }
     margin-bottom: 15px;
 }
 
-/* Стиль Glass UI для кнопок */
 .glass-chip {
-    /* Ефект скла */
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px); /* Safari support */
+    -webkit-backdrop-filter: blur(10px);
     
-    /* Рамка та тіні */
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     
-    /* Текст та форма */
     color: rgba(255, 255, 255, 0.7);
     font-family: 'Inter', sans-serif;
     font-size: 15px;
     font-weight: 500;
     padding: 14px 28px;
-    border-radius: 27px; /* Овальна форма */
+    border-radius: 24px;
     cursor: pointer;
     
-    /* Анімація */
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    gap: 6px; /* Відступ для емодзі */
+    gap: 6px;
 }
 
-/* Ефект при наведенні */
 .glass-chip:hover {
     background: rgba(255, 255, 255, 0.15);
     color: #fff;
     border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px); /* Легке підняття */
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2); /* Світіння тіні */
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Ефект натискання */
 .glass-chip:active {
     transform: translateY(0);
     background: rgba(255, 255, 255, 0.1);
 }
 .icon-btn {
-    background: transparent; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    padding: 6px; border-radius: 50%; transition: background 0.2s;
+    background: transparent; 
+    border: none; 
+    cursor: pointer;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    padding: 6px; 
+    border-radius: 12px;
+    transition: background 0.2s;
 }
 .icon-btn:hover { background-color: #424242; }
 
 .send-btn {
-    background-color: #676767; width: 32px; height: 32px;
-    border-radius: 10px; transition: background-color 0.2s; flex-shrink: 0;
+    background-color: #676767; 
+    width: 32px; 
+    height: 32px;
+    border-radius: 16px;
+    transition: background-color 0.2s; 
+    flex-shrink: 0;
 }
 .send-btn:hover, .chatgpt-input-container:focus-within .send-btn { background-color: #ffffff; }
 .send-btn svg { stroke: #212121; }
@@ -240,7 +315,6 @@ a { text-decoration: none; }
 
 .footer-text { position: absolute; bottom: 12px; font-size: 11px; color: #9b9b9b; text-align: center; }
 
-/* --- КАРТА --- */
 .map-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     opacity: 0; visibility: hidden; transition: opacity 0.5s ease; z-index: 1;
@@ -250,18 +324,16 @@ a { text-decoration: none; }
 .map-logo { position: absolute; top: 20px; right: 20px; z-index: 1000; }
 .map-logo img { width: 100px; }
 
-/* --- НИЖНЯ ПАНЕЛЬ (LIQUID GLASS STYLE) --- */
 .bottom-panel {
     position: fixed; bottom: 0; left: 0; width: 100%;
     z-index: 1000; transform: translateY(120%);
     transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-    pointer-events: none; /* Щоб кліки проходили повз пусті місця */
+    pointer-events: none;
 }
 .bottom-panel.active { transform: translateY(0); }
 
 .panel-content {
     pointer-events: auto;
-    /* Ефект скла */
     background: rgba(20, 20, 20, 0.75);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -273,7 +345,7 @@ a { text-decoration: none; }
     
     box-shadow: 
         0 -10px 40px rgba(0,0,0,0.6),
-        inset 0 1px 0 rgba(255,255,255,0.1); /* Внутрішнє світло зверху */
+        inset 0 1px 0 rgba(255,255,255,0.1);
     
     max-height: 65vh; overflow-y: auto;
     color: white;
@@ -288,7 +360,6 @@ a { text-decoration: none; }
     font-weight: 600;
 }
 
-/* Статус - ПРИХОВАНО за запитом */
 #status {
     display: none !important;
     margin-bottom: 20px;
@@ -310,7 +381,6 @@ a { text-decoration: none; }
     border-color: rgba(248, 113, 113, 0.2) !important;
 }
 
-/* Блок Рекомендацій */
 #recommendations {
     display: none;
     margin-top: 20px;
@@ -324,7 +394,6 @@ a { text-decoration: none; }
 }
 .rec-title { font-size: 18px; font-weight: 700; color: #fff; }
 
-/* Стиль для нової кнопки "Детальніше" */
 .details-btn {
     font-size: 13px;
     color: #9ca3af;
@@ -339,7 +408,6 @@ a { text-decoration: none; }
     color: #fff;
 }
 
-/* Стиль "Картки" для кожного пункту */
 .rec-item {
     display: flex; justify-content: space-between; align-items: center;
     background: rgba(255, 255, 255, 0.03);
@@ -358,7 +426,6 @@ a { text-decoration: none; }
 .rec-value { color: white; font-weight: 600; font-size: 15px; text-shadow: 0 0 10px rgba(255,255,255,0.1); }
 .rec-value small { opacity: 0.6; font-weight: 400; font-size: 0.85em; }
 
-/* КНОПКИ */
 .button-group {
     display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;
 }
@@ -375,7 +442,6 @@ a { text-decoration: none; }
     position: relative;
     overflow: hidden;
     
-    /* Ефект скла на кнопках */
     box-shadow: 
         0 4px 12px rgba(0,0,0,0.2),
         inset 0 1px 0 rgba(255,255,255,0.2); 
@@ -384,39 +450,31 @@ a { text-decoration: none; }
 .button-group button:active { transform: scale(0.96); }
 .button-group button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3); }
 
-/* Жовта кнопка (Симуляція) */
-/* --- ОБГОРТКА ДЛЯ АНІМАЦІЇ --- */
 .sim-wrapper {
-    display: flex; /* Щоб кнопки були в ряд */
-    flex: 1;       /* Займає місце як звичайна кнопка */
-    min-width: 0;  /* Запобігає виходу за межі */
-    gap: 0;        /* Початковий відступ 0 */
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    gap: 0;
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
     
-    /* Спочатку цей блок прихований, як і lightBtn раніше */
     display: none; 
 }
 
-/* Коли JS показує кнопку симуляції, ми ставимо display: flex */
 .sim-wrapper.visible {
     display: flex;
 }
 
-/* --- СТИЛІЗАЦІЯ КНОПКИ СИМУЛЯЦІЇ В СЕРЕДИНІ ГРУПИ --- */
 #lightBtn {
-    display: block; /* Перебиваємо display:none, бо керуємо через wrapper */
-    width: 100%;    /* Займає всю ширину обгортки */
+    display: block;
+    width: 100%;
     border-radius: 14px;
     z-index: 2;
-    /* Твій існуючий градієнт */
     background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
     color: #1a1a1a;
-    white-space: nowrap; /* Щоб текст не ламався при звуженні */
+    white-space: nowrap;
 }
 
-/* --- СТИЛІЗАЦІЯ КНОПКИ HARMONIZE (ПРИХОВАНА) --- */
 #harmonizeBtn {
-    /* Початковий стан: прихована */
     width: 0;
     flex: 0;
     padding: 0;
@@ -426,20 +484,16 @@ a { text-decoration: none; }
     white-space: nowrap;
     border: none;
     
-    /* Фіолетовий градієнт (гарно пасує до жовтого) */
     background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
     color: white;
     
-    /* Спадкуємо загальні стилі кнопок */
     border-radius: 0 14px 14px 0; 
     cursor: pointer;
     font-weight: 600;
     font-size: 14px;
     
-    /* Тіні як у інших кнопок */
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
     
-    /* Плавна анімація появи */
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
@@ -447,35 +501,29 @@ a { text-decoration: none; }
     filter: brightness(1.1);
 }
 
-/* --- АКТИВНИЙ СТАН (ПІСЛЯ НАТИСКАННЯ) --- */
-
-/* 1. Додаємо проміжок між кнопками */
 .sim-wrapper.active {
     gap: 10px;
 }
 
-/* 2. Симуляція звужується і змінює форму правого кута */
 .sim-wrapper.active #lightBtn {
-    flex: 1.2; /* Займає трохи більше половини */
+    flex: 1.2;
     width: auto;
-    border-top-right-radius: 6px;    /* Робимо стик більш рівним */
+    border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
 }
 
-/* 3. Harmonize з'являється і займає решту місця */
 .sim-wrapper.active #harmonizeBtn {
-    flex: 1; /* Займає решту простору */
+    flex: 1;
     width: auto;
     opacity: 1;
-    padding: 14px; /* Відновлюємо відступи */
-    border-top-left-radius: 6px;    /* Робимо стик більш рівним */
+    padding: 14px;
+    border-top-left-radius: 6px;
     border-bottom-left-radius: 6px;
     border-radius: 6px 14px 14px 6px;
     
     box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 
-/* Кнопка переходів (Більш темна, золотиста) */
 #crossingsBtn {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -487,7 +535,6 @@ a { text-decoration: none; }
     border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* Червона кнопка (Скинути) - на всю ширину */
 #resetBtn {
     flex: 0 0 100%;
     background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
@@ -499,7 +546,6 @@ a { text-decoration: none; }
     box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255,255,255,0.3);
 }
 
-/* Popup Leaflet styles correction */
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
     background: rgba(26, 26, 26, 0.95);
     backdrop-filter: blur(8px);
@@ -510,3 +556,97 @@ a { text-decoration: none; }
 .info-popup-row { margin-bottom: 4px; font-size: 13px; }
 .info-popup-label { color: #888; margin-right: 6px; }
 .crossing-icon { font-size: 20px; text-align: center; line-height: 24px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+
+.submit-button {
+    background-color: #676767;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 18px;
+    border: 1px solid transparent;
+    color: white;
+    
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 0 8px;
+    
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    view-transition-name: search-btn;
+    overflow: hidden;
+}
+
+.submit-button:hover {
+    background-color: #ffffff;
+    color: #1a1a1a;
+}
+.submit-button:hover svg {
+    stroke: #1a1a1a;
+}
+
+.submit-button.loading {
+    background-color: #333333a2;
+    color: #fff;
+    padding-left: 12px;
+    padding-right: 12px;
+    pointer-events: none;
+}
+
+.submit-button.success {
+    background-color: rgba(74, 222, 128, 0.15);
+    border-color: rgba(74, 222, 128, 0.5);
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.arrow-icon {
+    view-transition-name: btn-icon;
+    stroke: currentColor;
+    transition: stroke 0.2s;
+}
+
+.button-text {
+    display: none;
+    margin-right: 8px;
+    view-transition-name: btn-text;
+}
+
+.button-loader {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    view-transition-name: btn-loader;
+}
+
+.checkmark {
+    display: none;
+    view-transition-name: btn-check;
+}
+
+.submit-button.loading .arrow-icon { display: none; }
+.submit-button.loading .button-text { display: inline; }
+.submit-button.loading .button-loader { display: inline-block; }
+
+.submit-button.success .arrow-icon { display: none; }
+.submit-button.success .checkmark { display: inline-block; }
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* View Transitions Setup */
+::view-transition-group(search-btn),
+::view-transition-group(btn-icon),
+::view-transition-group(btn-text),
+::view-transition-group(btn-loader),
+::view-transition-group(btn-check) {
+    animation-duration: 0.4s;
+}
