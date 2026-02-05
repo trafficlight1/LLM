@@ -269,22 +269,24 @@ function isUTMCoordinate(x, y) {
 // ==================== ІНІЦІАЛІЗАЦІЯ КАРТИ ====================
 // ==================== UI ТА АНІМАЦІЯ ====================
 
+// ==================== UI ТА АНІМАЦІЯ (ВИПРАВЛЕНО) ====================
+
 const searchBtn = document.getElementById('analyzeBtn');
 
-// Просте перемикання класів без View Transitions API
 function setButtonState(state) {
-    // Очищаємо всі стани
     searchBtn.classList.remove('loading', 'success');
     
     if (state === 'loading') {
         searchBtn.classList.add('loading');
+        searchBtn.disabled = true;
     } else if (state === 'success') {
         searchBtn.classList.add('success');
+        searchBtn.disabled = true;
+    } else {
+        searchBtn.disabled = false;
     }
-    // state === 'default' просто знімає всі класи
 }
 
-// Головна функція-обгортка для пошуку
 async function handleSearchClick() {
     const streetName = document.getElementById('streetNamePart').value;
     
@@ -293,28 +295,17 @@ async function handleSearchClick() {
         return;
     }
 
-    // 1. Анімація завантаження (розтягування)
     setButtonState('loading');
 
     try {
-        // 2. Виконуємо аналіз і чекаємо завершення (дані готові, але карта ще схована)
         await analyzeStreet(); 
-        
-        // 3. ПОКАЗУЄМО ЗЕЛЕНУ ГАЛОЧКУ
         setButtonState('success');
-
-        // 4. ПАУЗА: Даємо користувачу побачити галочку (1.2 секунди)
         await new Promise(resolve => setTimeout(resolve, 550));
-
-        // 5. Тільки ТЕПЕР переходимо на карту
         showMap(); 
 
-        // 6. Робимо зум на об'єкт (вже коли карта видима)
-        // Невелика затримка (100мс), щоб CSS transition карти почався
         setTimeout(() => {
             if (map && savedStreetGeoJSON) {
-                map.invalidateSize(); // Оновлюємо розміри, щоб не було сірого фону
-                
+                map.invalidateSize();
                 const bbox = turf.bbox(savedStreetGeoJSON);
                 map.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], {
                     padding: [50, 50],
@@ -324,15 +315,14 @@ async function handleSearchClick() {
             }
         }, 100);
 
-        // 7. Повертаємо кнопку в початковий стан (вона все одно вже прихована)
         setTimeout(() => {
             setButtonState('default');
         }, 500);
 
     } catch (error) {
         console.error("Помилка пошуку:", error);
-        // Якщо помилка - повертаємо стрілку
         setButtonState('default');
+        updateStatus(`Помилка: ${error.message}`, 'error');
     }
 }
 
@@ -1163,4 +1153,5 @@ if (typeof proj4 === 'undefined') {
     console.error('<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>');
 } else {
     initProj4();
+
 }
