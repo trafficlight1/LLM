@@ -32,33 +32,45 @@ async function rateLimitedRequest(key, requestFn) {
 
 let firebaseReady = false;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     try {
-        firebase.initializeApp(firebaseConfig);
+        // Ініціалізація Firebase
+        const app = firebase.initializeApp(firebaseConfig);
         
-        if (typeof firebase.appCheck !== 'undefined') {
-            const appCheck = firebase.appCheck();
-            appCheck.activate(
-                '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z', 
-                true
-            );
-        }
-        
+        // Отримуємо Firestore
         db = firebase.firestore();
         
-        // КРИТИЧНО: Чекаємо готовності Firebase
-        db.enablePersistence({ synchronizeTabs: true })
-            .then(() => {
-                firebaseReady = true;
-                console.log("✅ Firebase готовий до роботи");
-            })
-            .catch((err) => {
-                console.warn("⚠️ Persistence не активовано:", err);
-                firebaseReady = true; // все одно дозволяємо працювати
-            });
+        // КРИТИЧНО: Вимикаємо офлайн режим
+        db.settings({
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+            // Не використовуємо persistence на GitHub Pages
+            // merge: true
+        });
+        
+        // ВАЖЛИВО: НЕ викликаємо enablePersistence на статичному хостингу
+        // db.enablePersistence() викликає помилки на GitHub Pages
+        
+        // App Check (опціонально)
+        if (typeof firebase.appCheck !== 'undefined') {
+            try {
+                const appCheck = firebase.appCheck();
+                appCheck.activate(
+                    '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z', 
+                    true
+                );
+                console.log("✅ App Check активовано");
+            } catch (appCheckError) {
+                console.warn("⚠️ App Check пропущено:", appCheckError);
+            }
+        }
         
         initMap();
-        testFirebaseConnection();
+        
+        // Тестуємо підключення
+        await testFirebaseConnection();
+        
+        firebaseReady = true;
+        console.log("✅ Firebase повністю готовий");
         
     } catch (error) {
         console.error("❌ Помилка ініціалізації Firebase:", error);
@@ -68,8 +80,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function testFirebaseConnection() {
     try {
-        const testDoc = await db.collection('park').limit(1).get();
+        console.log("🔍 Тестуємо з'єднання з Firebase...");
+        
+        // Пробуємо завантажити один документ
+        const testQuery = await db.collection('buildings')
+            .limit(1)
+            .get({ source: 'server' }); // ВАЖЛИВО: примусово з сервера
+        
+        console.log("✅ Firebase підключено, документів:", testQuery.size);
+        
+        if (testQuery.size > 0) {
+            const firstDoc = testQuery.docs[0];
+            console.log("📄 Приклад документа:", firstDoc.id, firstDoc.data());
+        }
+        
     } catch (error) {
+        console.error("❌ Помилка підключення до Firebase:", error);
+        
+        // Детальна діагностика
+        if (error.code === 'unavailable') {
+            console.error("🚫 Firebase недоступний - перевірте CSP та мережу");
+        } else if (error.code === 'permission-denied') {
+            console.error("🔒 Доступ заборонено - перевірте Firestore Rules");
+        }
+        
+        throw error;
     }
 }
 
@@ -1351,4 +1386,5 @@ if (typeof proj4 === 'undefined') {
     initProj4();
 
 }
+
 
