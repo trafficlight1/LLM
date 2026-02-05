@@ -1,4 +1,4 @@
-const firebaseConfig = {
+onst firebaseConfig = {
     apiKey: "AIzaSyA777OVFMDEgGDyf5BbKSkwbweBLOputZ0",
     authDomain: "pidsvituai.firebaseapp.com",
     projectId: "pidsvituai",
@@ -30,6 +30,8 @@ async function rateLimitedRequest(key, requestFn) {
     return await requestFn();
 }
 
+let firebaseReady = false;
+
 document.addEventListener('DOMContentLoaded', function() {
     try {
         firebase.initializeApp(firebaseConfig);
@@ -43,6 +45,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         db = firebase.firestore();
+        
+        // КРИТИЧНО: Чекаємо готовності Firebase
+        db.enablePersistence({ synchronizeTabs: true })
+            .then(() => {
+                firebaseReady = true;
+                console.log("✅ Firebase готовий до роботи");
+            })
+            .catch((err) => {
+                console.warn("⚠️ Persistence не активовано:", err);
+                firebaseReady = true; // все одно дозволяємо працювати
+            });
+        
         initMap();
         testFirebaseConnection();
         
