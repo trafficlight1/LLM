@@ -1,4 +1,4 @@
-сonst firebaseConfig = {
+const firebaseConfig = {
     apiKey: "AIzaSyA777OVFMDEgGDyf5BbKSkwbweBLOputZ0",
     authDomain: "pidsvituai.firebaseapp.com",
     projectId: "pidsvituai",
@@ -32,73 +32,44 @@ async function rateLimitedRequest(key, requestFn) {
 
 let firebaseReady = false;
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
     try {
-        // Ініціалізація Firebase
         firebase.initializeApp(firebaseConfig);
         
-        // ❌ ВИДАЛІТЬ ВСЕ ПРО APP CHECK
-        /*
         if (typeof firebase.appCheck !== 'undefined') {
             const appCheck = firebase.appCheck();
-            appCheck.activate(...);
+            appCheck.activate(
+                '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z', 
+                true
+            );
         }
-        */
         
         db = firebase.firestore();
         
-        // Налаштування Firestore
-        db.settings({
-            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-        });
+        // КРИТИЧНО: Чекаємо готовності Firebase
+        db.enablePersistence({ synchronizeTabs: true })
+            .then(() => {
+                firebaseReady = true;
+                console.log("✅ Firebase готовий до роботи");
+            })
+            .catch((err) => {
+                console.warn("⚠️ Persistence не активовано:", err);
+                firebaseReady = true; // все одно дозволяємо працювати
+            });
         
         initMap();
-        
-        // Чекаємо готовності з timeout
-        await Promise.race([
-            testFirebaseConnection(),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout')), 10000)
-            )
-        ]);
-        
-        firebaseReady = true;
-        console.log("✅ Firebase готовий");
+        testFirebaseConnection();
         
     } catch (error) {
-        console.error("❌ Помилка Firebase:", error);
-        firebaseReady = false;
-        updateStatus("Firebase недоступний, працюю без БД", 'error');
+        console.error("❌ Помилка ініціалізації Firebase:", error);
+        updateStatus("Помилка підключення до бази даних", 'error');
     }
 });
 
 async function testFirebaseConnection() {
     try {
-        console.log("🔍 Тестуємо з'єднання з Firebase...");
-        
-        // Пробуємо завантажити один документ
-        const testQuery = await db.collection('buildings')
-            .limit(1)
-            .get({ source: 'server' }); // ВАЖЛИВО: примусово з сервера
-        
-        console.log("✅ Firebase підключено, документів:", testQuery.size);
-        
-        if (testQuery.size > 0) {
-            const firstDoc = testQuery.docs[0];
-            console.log("📄 Приклад документа:", firstDoc.id, firstDoc.data());
-        }
-        
+        const testDoc = await db.collection('park').limit(1).get();
     } catch (error) {
-        console.error("❌ Помилка підключення до Firebase:", error);
-        
-        // Детальна діагностика
-        if (error.code === 'unavailable') {
-            console.error("🚫 Firebase недоступний - перевірте CSP та мережу");
-        } else if (error.code === 'permission-denied') {
-            console.error("🔒 Доступ заборонено - перевірте Firestore Rules");
-        }
-        
-        throw error;
     }
 }
 
@@ -683,25 +654,7 @@ async function processStreetVisualization(data, searchName) {
 
     // ================== ІНТЕГРАЦІЯ З FIREBASE ДЛЯ БУДІВЕЛЬ (ПОШУК ЗА OSM_ID) ==================
     if(buildingFeatures.length > 0) {
-    // КРИТИЧНО: Перевіряємо готовність Firebase
-    if (!db || !firebaseReady) {
-        console.warn("⚠️ Firebase не готовий, візуалізую будівлі без даних БД");
-        
-        // Візуалізуємо всі будівлі як сірі (optimize = 0)
-        L.geoJSON(turf.featureCollection(buildingFeatures), { 
-            style: { 
-                color: '#555', 
-                weight: 1, 
-                fillColor: '#555', 
-                fillOpacity: 0.1 
-            }
-        }).addTo(buildingLayer);
-        
-        updateStatus(`Будівель: ${buildingFeatures.length} (БД недоступна)`);
-        return;
-    }
-    
-    updateStatus("Перевірка будівель у базі даних...");
+        updateStatus("Перевірка будівель у базі даних...");
         
         // Створюємо масив промісів для перевірки кожної будівлі
         const buildingChecks = buildingFeatures.map(async (feature) => {
@@ -1380,7 +1333,3 @@ if (typeof proj4 === 'undefined') {
     initProj4();
 
 }
-
-
-
-
