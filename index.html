@@ -4,40 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' 
-            https://unpkg.com 
-            https://cdnjs.cloudflare.com 
-            https://www.gstatic.com
-            https://www.google.com/recaptcha/
-            https://www.gstatic.com/recaptcha/
-            https://static.cloudflareinsights.com;
-        style-src 'self' 'unsafe-inline' 
-            https://unpkg.com 
-            https://fonts.googleapis.com;
-        font-src 'self' 
-            https://fonts.gstatic.com;
-        connect-src 'self' 
-            https://nominatim.openstreetmap.org 
-            https://overpass-api.de 
-            https://*.firebaseio.com 
-            https://*.googleapis.com 
-            https://firestore.googleapis.com
-            https://www.google.com/recaptcha/
-            https://content-firebaseappcheck.googleapis.com
-            https://www.gstatic.com
-            https://unpkg.com
-            https://static.cloudflareinsights.com;
-        frame-src 
-            https://www.google.com/recaptcha/ 
-            https://recaptcha.google.com/recaptcha/;
-        img-src 'self' data: blob: https: http:;
-    ">
-    <script src="https://www.google.com/recaptcha/enterprise.js?render=6Ld15l8sAAAAADBhMOgsNq_oYZZnWKSFOUfh2Dr3"></script>
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdnjs.cloudflare.com https://www.gstatic.com https://www.google.com;
+    style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self' https://nominatim.openstreetmap.org https://overpass-api.de https://*.firebaseio.com https://*.googleapis.com https://securetoken.googleapis.com https://unpkg.com https://www.gstatic.com;
+    img-src 'self' data: blob: https://*.openstreetmap.org https://*.tile.openstreetmap.org https://unpkg.com https://*.basemaps.cartocdn.com;
+">
     <title>Підсвітити ліхтар AI</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -51,22 +29,31 @@
     <div class="welcome-title">Підсвітити ліхтар AI</div>
 
     <div class="chatgpt-input-container">
+        
         <div class="input-wrapper">
             <select id="streetPrefix" title="Тип вулиці">
-                <option value="Вулиця">Вул.</option>
-                <option value="Проспект">Просп.</option>
+                <option value="Вулиця">Вулиця</option>
+                <option value="Проспект">Проспект</option>
                 <option value="Площа">Площа</option>
                 <option value="Парк">Парк</option>
             </select>
             <div style="position: relative; flex-grow: 1;">
-                <input type="text" id="streetNamePart" placeholder="Яку вулицю проаналізувати?" autocomplete="on">
+                <input type="text" id="streetNamePart" placeholder="Яку вулицю аналізувати?" autocomplete="on">
                 <ul id="suggestionsList" class="suggestions-list"></ul>
             </div>
         </div>
 
         <div style="display: flex; gap: 8px;">
-            <button id="analyzeBtn" onclick="analyzeStreet()" class="icon-btn send-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            <button id="analyzeBtn" class="submit-button" onclick="handleSearchClick()">
+                <svg class="arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5"></line>
+                    <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
+                <span class="button-text">Шукаю</span>
+                <span class="button-loader"></span>
+                <svg class="checkmark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
             </button>
         </div>
     </div>
@@ -120,6 +107,7 @@
 
         <div class="panel-section">
             <div class="button-group">
+    
                 <div id="simGroup" class="sim-wrapper">
                     <button id="lightBtn" onclick="simulateLighting()">
                         Симуляція ✦
@@ -139,24 +127,20 @@
                 </button>
             </div>
         </div>
+        </div>
     </div>
 </div>
 
 <input type="hidden" id="cityInput" value="Lviv">
 
-<!-- Бібліотеки -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<!--<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script> -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
 
 <script src="script.js"></script>
 
 </body>
 </html>
-
-
