@@ -35,46 +35,40 @@ let firebaseReady = false;
 document.addEventListener('DOMContentLoaded', async function() {
     try {
         // Ініціалізація Firebase
-        const app = firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(firebaseConfig);
         
-        // Отримуємо Firestore
+        // ❌ ВИДАЛІТЬ ВСЕ ПРО APP CHECK
+        /*
+        if (typeof firebase.appCheck !== 'undefined') {
+            const appCheck = firebase.appCheck();
+            appCheck.activate(...);
+        }
+        */
+        
         db = firebase.firestore();
         
-        // КРИТИЧНО: Вимикаємо офлайн режим
+        // Налаштування Firestore
         db.settings({
-            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
-            // Не використовуємо persistence на GitHub Pages
-            // merge: true
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
         });
-        
-        // ВАЖЛИВО: НЕ викликаємо enablePersistence на статичному хостингу
-        // db.enablePersistence() викликає помилки на GitHub Pages
-        
-        // App Check (опціонально)
-        if (typeof firebase.appCheck !== 'undefined') {
-            try {
-                const appCheck = firebase.appCheck();
-                appCheck.activate(
-                    '6LdM1F8sAAAAADLgpjEUlP9SSyoaM_0tXzBZtf-Z', 
-                    true
-                );
-                console.log("✅ App Check активовано");
-            } catch (appCheckError) {
-                console.warn("⚠️ App Check пропущено:", appCheckError);
-            }
-        }
         
         initMap();
         
-        // Тестуємо підключення
-        await testFirebaseConnection();
+        // Чекаємо готовності з timeout
+        await Promise.race([
+            testFirebaseConnection(),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), 10000)
+            )
+        ]);
         
         firebaseReady = true;
-        console.log("✅ Firebase повністю готовий");
+        console.log("✅ Firebase готовий");
         
     } catch (error) {
-        console.error("❌ Помилка ініціалізації Firebase:", error);
-        updateStatus("Помилка підключення до бази даних", 'error');
+        console.error("❌ Помилка Firebase:", error);
+        firebaseReady = false;
+        updateStatus("Firebase недоступний, працюю без БД", 'error');
     }
 });
 
@@ -1386,5 +1380,6 @@ if (typeof proj4 === 'undefined') {
     initProj4();
 
 }
+
 
 
