@@ -572,6 +572,8 @@ async function processParkVisualization(data, searchName) {
 
 // ==================== ВІЗУАЛІЗАЦІЯ ВУЛИЦІ (ЗМІНЕНО) ====================
 
+// ==================== ВІЗУАЛІЗАЦІЯ ВУЛИЦІ З FIREBASE INTEGRATION ====================
+
 async function processStreetVisualization(data, searchName) {
     const streetFeatures = [];
     const sidewalkFeatures = [];
@@ -585,8 +587,10 @@ async function processStreetVisualization(data, searchName) {
             
             if (el.tags && el.tags.building) {
                 if (coords.length > 2) { 
-                    coords.push(coords[0]); 
-                    buildingFeatures.push(turf.polygon([coords], el.tags)); 
+                    coords.push(coords[0]);
+                    // Зберігаємо ID з поля id (це і є osm_id для way)
+                    const props = { ...el.tags, osm_id: el.id };
+                    buildingFeatures.push(turf.polygon([coords], props)); 
                 }
                 return;
             }
@@ -595,7 +599,6 @@ async function processStreetVisualization(data, searchName) {
             const tags = el.tags || {};
             const elName = tags.name || "";
             
-            // Використовуємо нову функцію перевірки відповідності
             const isMatch = matchesSearchQuery(elName, searchName);
             const isStreet = isMatch && 
                            tags.highway && 
@@ -604,7 +607,6 @@ async function processStreetVisualization(data, searchName) {
             if (isStreet) {
                 streetFeatures.push(line);
                 
-                // Вибираємо найповнішу назву
                 if (elName.length > bestMatchScore) {
                     bestMatchScore = elName.length;
                     foundFullName = elName;
@@ -621,7 +623,6 @@ async function processStreetVisualization(data, searchName) {
     }
     
     savedStreetName = foundFullName;
-    
     savedStreetGeoJSON = turf.featureCollection(streetFeatures);
 
     L.geoJSON(savedStreetGeoJSON, { 
@@ -637,39 +638,235 @@ async function processStreetVisualization(data, searchName) {
         }
     }).addTo(mainLayer);
 
-    // ================== ЗМІНА ТУТ ==================
+    // ================== ІНТЕГРАЦІЯ З FIREBASE ДЛЯ БУДІВЕЛЬ (ПОШУК ЗА OSM_ID) ==================
     if(buildingFeatures.length > 0) {
-        L.geoJSON(turf.featureCollection(buildingFeatures), { 
-            style: function(feature) {
-                // Перевіряємо, чи є у будинка назва (name)
-                if (feature.properties && feature.properties.name) {
+        updateStatus("Перевірка будівель у базі даних...");
+        
+        // Створюємо масив промісів для перевірки кожної будівлі
+        const buildingChecks = buildingFeatures.map(async (feature) => {
+            const props = feature.properties || {};
+            const osmId = props.osm_id;
+            
+            // Якщо будівля не має osm_id, пропускаємо пошук у Firebase
+            if (!osmId) {
+                console.warn('Будівля без osm_id:', props);
+                return { feature, optimize: 0, firebaseData: null };
+            }
+            
+            try {
+                // Шукаємо будівлю в Firebase за полем osm_id
+                const querySnapshot = await db.collection('buildings')
+                    .where('osm_id', '==', String(osmId))
+                    .limit(1)
+                    .get();
+                
+                if (!querySnapshot.empty) {
+                    const buildingDoc = querySnapshot.docs[0];
+                    const data = buildingDoc.data();
+                    console.log(`✅ Знайдено в Firebase: osm_id=${osmId}, optimize=${data.optimize}`);
                     return { 
-                        color: '#D20A2E',       // Червоний контур
-                        weight: 2, 
-                        fillColor: '#D20A2E',   // Червона заливка
-                        fillOpacity: 0.3        // Більш помітна непрозорість
+                        feature, 
+                        optimize: data.optimize || 0,
+                        firebaseData: data
                     };
+                } else {
+                    console.log(`❌ Не знайдено в Firebase: osm_id=${osmId}`);
+                    return { feature, optimize: 0, firebaseData: null };
                 }
-                // Стандартний стиль для звичайних будинків
+            } catch (error) {
+                console.error(`Помилка перевірки будівлі з osm_id "${osmId}":`, error);
+                return { feature, optimize: 0, firebaseData: null };
+            }
+        });
+        
+        // Чекаємо завершення всіх перевірок
+        const checkedBuildings = await Promise.all(buildingChecks);
+        
+        // Підраховуємо статистику
+        const stats = {
+            total: checkedBuildings.length,
+            optimize_1: 0,
+            optimize_2: 0,
+            optimize_3: 0,
+            optimize_0: 0
+        };
+        
+        // Візуалізуємо будівлі з відповідними кольорами
+        L.geoJSON(turf.featureCollection(checkedBuildings.map(b => b.feature)), { 
+            style: function(feature) {
+                // Знаходимо відповідний запис з optimize
+                const buildingData = checkedBuildings.find(
+                    b => b.feature.properties.osm_id === feature.properties.osm_id
+                );
+                
+                const optimize = buildingData ? buildingData.optimize : 0;
+                const fbData = buildingData ? buildingData.firebaseData : null;
+                
+                // Оновлюємо статистику
+                stats[`optimize_${optimize}`]++;
+                
+                // Визначаємо колір залежно від optimize
+                let color, fillColor, fillOpacity, weight, popupText;
+                
+                switch(optimize) {
+                    case 1: // Тільки name
+                        color = '#D20A2E';
+                        fillColor = '#D20A2E';
+                        fillOpacity = 0.4;
+                        weight = 2;
+                        popupText = '🏛️ <b>Іменована будівля</b><br><small>Потенціал архітектурної підсвітки</small>';
+                        break;
+                    
+                    case 2: // Тільки Historical
+                        color = '#2E86DE';
+                        fillColor = '#2E86DE';
+                        fillOpacity = 0.4;
+                        weight = 2;
+                        popupText = '🏛️ <b>Історична будівля</b><br><small>Об\'єкт культурної спадщини</small>';
+                        break;
+                    
+                    case 3: // name + Historical
+                        color = '#8E44AD';
+                        fillColor = '#8E44AD';
+                        fillOpacity = 0.5;
+                        weight = 3;
+                        popupText = '🏛️ <b>Іменована історична будівля</b><br><small>Пріоритет для підсвітки</small>';
+                        break;
+                    
+                    default: // optimize = 0 або немає в базі
+                        color = '#555';
+                        fillColor = '#555';
+                        fillOpacity = 0.1;
+                        weight = 1;
+                        popupText = null;
+                }
+                
+                // Зберігаємо дані для popup
+                feature.properties._popupText = popupText;
+                feature.properties._firebaseData = fbData;
+                
                 return { 
-                    color: '#555', 
-                    weight: 1, 
-                    fillOpacity: 0.1 
+                    color: color, 
+                    weight: weight, 
+                    fillColor: fillColor, 
+                    fillOpacity: fillOpacity 
                 };
             },
             onEachFeature: function(feature, layer) {
-                // Додаємо popup, якщо є назва
-                if (feature.properties && feature.properties.name) {
-                    layer.bindPopup(`<b>Високий потенціал появи архітектурної підсвітки</b>`);
+                const popupText = feature.properties._popupText;
+                const fbData = feature.properties._firebaseData;
+                
+                if (popupText) {
+                    const props = feature.properties;
+                    const name = fbData?.name || props.name || 'Без назви';
+                    const osmId = props.osm_id || 'Невідомо';
+                    
+                    let popupContent = popupText;
+                    
+                    popupContent += `
+                        <div class="info-popup-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+                            <span class="info-popup-label">Назва:</span><b>${name}</b>
+                        </div>
+                    `;
+                    
+                    if (fbData?.Historical) {
+                        popupContent += `
+                            <div class="info-popup-row">
+                                <span class="info-popup-label">Історичний статус:</span>${fbData.Historical}
+                            </div>
+                        `;
+                    }
+                    
+                    popupContent += `
+                        <div class="info-popup-row" style="font-size: 0.85em; color: #999;">
+                            OSM ID: ${osmId}
+                        </div>
+                    `;
+                    
+                    layer.bindPopup(popupContent);
                 }
             }
         }).addTo(buildingLayer);
+        
+        // Виводимо статистику
+        const foundCount = stats.optimize_1 + stats.optimize_2 + stats.optimize_3;
+        
+        if (foundCount > 0) {
+            updateStatus(
+                `Будівель: ${stats.total} | ` +
+                `🔴 ${stats.optimize_1} | ` +
+                `🔵 ${stats.optimize_2} | ` +
+                `🟣 ${stats.optimize_3}`,
+                'success'
+            );
+        } else {
+            updateStatus(`Будівель: ${stats.total} (дані в Firebase відсутні)`);
+        }
+        
+        console.log('📊 Статистика будівель:', stats);
+        console.log('📋 Перевірені будівлі:', checkedBuildings.map(b => ({
+            osm_id: b.feature.properties.osm_id,
+            name: b.feature.properties.name,
+            optimize: b.optimize
+        })));
     }
-    // ===============================================
-    
-    //document.getElementById('crossingsBtn').style.display = 'block';
 }
 
+async function getBuildingsStatistics() {
+    if (!savedStreetName) {
+        console.warn("Вулиця не вибрана");
+        return null;
+    }
+    
+    const street = normalizeStreetName(savedStreetName);
+    
+    try {
+        const snapshot = await db.collection('streets')
+            .doc(street)
+            .collection('buildings')
+            .get();
+        
+        const stats = {
+            total: 0,
+            optimize_1: 0,
+            optimize_2: 0,
+            optimize_3: 0
+        };
+        
+        const buildingDetails = [];
+        
+        for (const doc of snapshot.docs) {
+            const streetData = doc.to_dict();
+            const buildingId = streetData.buildingId;
+            
+            const buildingDoc = await db.collection('buildings').doc(buildingId).get();
+            
+            if (buildingDoc.exists) {
+                const data = buildingDoc.data();
+                const optimize = data.optimize || 0;
+                
+                stats.total++;
+                stats[`optimize_${optimize}`]++;
+                
+                buildingDetails.push({
+                    id: buildingId,
+                    name: data.name,
+                    optimize: optimize,
+                    Historical: data.Historical
+                });
+            }
+        }
+        
+        console.log('📊 Статистика будівель на вулиці:', stats);
+        console.log('📋 Деталі будівель:', buildingDetails);
+        
+        return { stats, buildings: buildingDetails };
+        
+    } catch (error) {
+        console.error('Помилка отримання статистики:', error);
+        return null;
+    }
+}
 // ==================== ЗАВАНТАЖЕННЯ ДАНИХ ОСВІТЛЕННЯ ====================
 
 async function loadLightingData(streetName) {
@@ -1111,40 +1308,7 @@ document.getElementById('streetNamePart').addEventListener('keypress', function(
         this.blur();
     }
 });
-// ==================== КНОПКА ДЛЯ ТЕСТУВАННЯ ВІЗУАЛІЗАЦІЇ ====================
 
-// Функція для примусового завантаження і візуалізації світильників з Firebase
-async function forceVisualizeLightsFromFirebase() {
-    if (!savedStreetName) {
-        alert("Спочатку виберіть вулицю або парк!");
-        return;
-    }
-    
-    if (!map || !lightsLayer) {
-        alert("Карта не ініціалізована!");
-        return;
-    }
-    
-    updateStatus("Завантаження світильників з Firebase...");
-    
-    try {
-        const lightsData = await loadFromFirebase(savedStreetName);
-        
-        if (!lightsData || lightsData.length === 0) {
-            updateStatus("Світильники не знайдено в Firebase", 'error');
-            return;
-        }
-        
-        lightsLayer.clearLayers();
-        visualizeLights(lightsData);
-        updateStatus(`Візуалізовано ${lightsData.length} світильників`, 'success');
-        
-    } catch (error) {
-        console.error("❌ Помилка:", error);
-        updateStatus(`Помилка: ${error.message}`, 'error');
-        alert(`Помилка завантаження:\n${error.message}`);
-    }
-}
 
 // КРИТИЧНО: Перевіряємо наявність proj4
 if (typeof proj4 === 'undefined') {
