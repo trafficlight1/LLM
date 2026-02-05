@@ -1,4 +1,4 @@
-onst firebaseConfig = {
+сonst firebaseConfig = {
     apiKey: "AIzaSyA777OVFMDEgGDyf5BbKSkwbweBLOputZ0",
     authDomain: "pidsvituai.firebaseapp.com",
     projectId: "pidsvituai",
@@ -1380,6 +1380,7 @@ if (typeof proj4 === 'undefined') {
     initProj4();
 
 }
+
 
 
 
