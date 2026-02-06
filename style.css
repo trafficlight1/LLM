@@ -314,6 +314,136 @@ a { text-decoration: none; }
 .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .footer-text { position: absolute; bottom: 12px; font-size: 11px; color: #9b9b9b; text-align: center; }
+#backgroundCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    min-height: -webkit-fill-available;
+    z-index: 0;
+    background: #000000;
+    transition: opacity 0.3s ease-out;
+}
+
+.frosted-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    min-height: -webkit-fill-available;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(3px) saturate(120%);
+    -webkit-backdrop-filter: blur(5px) saturate(120%);
+    pointer-events: none;
+    transition: opacity 0.3s ease-out;
+}
+
+/* КРИТИЧНО: Коли мапа активна, повністю приховуємо анімацію */
+body.map-active #backgroundCanvas,
+body.map-active .frosted-overlay {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+}
+
+.welcome-screen {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+.welcome-screen.hidden {
+    opacity: 0;
+    transform: translateY(-20px);
+    pointer-events: none;
+    display: none !important;
+}
+.leaflet-marker-icon,
+.leaflet-popup {
+    animation: fadeInMarker 0.4s ease-in-out;
+}
+
+@keyframes fadeInMarker {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    
+    }
+}
+/* КРИТИЧНО: Мапа та панель мають бути поверх всього */
+.map-container,
+.bottom-panel {
+    position: relative;
+    z-index: 10;
+    display: none;
+    opacity: 0;
+}
+
+.map-container.active,
+.bottom-panel.active {
+    display: block !important;
+    opacity: 1 !important;
+    animation: fadeIn 0.3s ease-in forwards;
+}
+
+@keyframes fadeIn {
+    from { 
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Забезпечуємо що мапа займає всю висоту */
+#map {
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+}
+
+.map-wrapper {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.welcome-screen {
+    background: transparent;
+}
+
+.chatgpt-input-container,
+.quick-actions button {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.welcome-title {
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+}
+
+.footer-text {
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+}
 
 .map-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
