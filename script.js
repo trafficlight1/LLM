@@ -68,7 +68,9 @@ document.addEventListener('DOMContentLoaded', function() {
 async function testFirebaseConnection() {
     try {
         const testDoc = await db.collection('park').limit(1).get();
+        console.log("✅ Firebase підключено");
     } catch (error) {
+        console.warn("⚠️ Firebase недоступний:", error);
     }
 }
 
@@ -279,10 +281,7 @@ function isUTMCoordinate(x, y) {
     return false;
 }
 
-// ==================== ІНІЦІАЛІЗАЦІЯ КАРТИ ====================
 // ==================== UI ТА АНІМАЦІЯ ====================
-
-// ==================== UI ТА АНІМАЦІЯ (ВИПРАВЛЕНО) ====================
 
 const searchBtn = document.getElementById('analyzeBtn');
 
@@ -388,11 +387,12 @@ function resetMap() {
     
     savedStreetGeoJSON = null; 
     savedStreetName = null;
-    suggestionsList.classList.add('active'); // показати
-    suggestionsList.classList.remove('active'); // сховати
+    
+    const suggestionsList = document.getElementById('suggestionsList');
+    suggestionsList.style.display = 'none';
+    
     document.getElementById('recommendations').style.display = 'none';
     document.getElementById('crossingsBtn').style.display = 'none';
-    document.getElementById('suggestionsList').style.display = 'none'; 
     document.getElementById('mapContainer').classList.remove('active');
     document.getElementById('bottomPanel').classList.remove('active');
     document.getElementById('streetNamePart').value = '';
@@ -413,11 +413,6 @@ function quickSearch(type, name) {
     // Викликаємо нову функцію з анімацією
     handleSearchClick();
 }
-
-
-// ==================== ГОЛОВНА ФУНКЦІЯ АНАЛІЗУ ====================
-
-// ==================== ГОЛОВНА ФУНКЦІЯ АНАЛІЗУ ====================
 
 // ==================== ГОЛОВНА ФУНКЦІЯ АНАЛІЗУ ====================
 
@@ -447,7 +442,7 @@ async function analyzeStreet() {
         let query = '';
         const searchPattern = createFlexibleSearchPattern(namePart);
 
-        // ... Формування запиту ...
+        // Формування запиту
         if (isParkSearch) {
              query = `[out:json][timeout:180][maxsize:20000000]; area(${savedAreaId})->.searchArea; ( way["name"~"${searchPattern}", i]["leisure"="park"](area.searchArea); relation["name"~"${searchPattern}", i]["leisure"="park"](area.searchArea); way["name"~"парк.*${searchPattern}", i]["leisure"="park"](area.searchArea); relation["name"~"парк.*${searchPattern}", i]["leisure"="park"](area.searchArea); )->.parkGeom; .parkGeom map_to_area -> .parkArea; ( way["highway"~"footway|path|pedestrian|cycleway|steps"](area.parkArea); )->.paths; ( node["leisure"="playground"](area.parkArea); way["leisure"="playground"](area.parkArea); )->.playgrounds; .parkGeom out geom; .paths out geom; .playgrounds out geom;`;
         } else {
@@ -470,8 +465,6 @@ async function analyzeStreet() {
             await loadLightingData(savedStreetName);
         }
 
-        // ВАЖЛИВО: Ми більше НЕ викликаємо showMap() тут.
-        // Ми просто повертаємо успіх.
         return true; 
 
     } catch (error) {
@@ -579,11 +572,7 @@ async function processParkVisualization(data, searchName) {
             }
         }).addTo(mainLayer);
     }
-
-    
 }
-
-// ==================== ВІЗУАЛІЗАЦІЯ ВУЛИЦІ (ЗМІНЕНО) ====================
 
 // ==================== ВІЗУАЛІЗАЦІЯ ВУЛИЦІ З FIREBASE INTEGRATION ====================
 
@@ -651,7 +640,7 @@ async function processStreetVisualization(data, searchName) {
         }
     }).addTo(mainLayer);
 
-    // ================== ІНТЕГРАЦІЯ З FIREBASE ДЛЯ БУДІВЕЛЬ (ВИПРАВЛЕНО) ==================
+    // ================== ІНТЕГРАЦІЯ З FIREBASE ДЛЯ БУДІВЕЛЬ ==================
     if(buildingFeatures.length > 0) {
         
         // КРИТИЧНО: Чекаємо готовності Firebase перед запитами
@@ -701,6 +690,7 @@ async function processStreetVisualization(data, searchName) {
                     return { feature, optimize: 0, firebaseData: null };
                 }
             } catch (error) {
+                console.warn(`⚠️ Firebase помилка для будівлі ${osmId}:`, error);
                 return { feature, optimize: 0, firebaseData: null };
             }
         });
@@ -734,7 +724,7 @@ async function waitForFirebase(maxWait = 10000) {
     while (!firebaseReady && (Date.now() - startTime) < maxWait) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
-    }
+}
 
 // Візуалізація будівель БЕЗ даних Firebase (fallback)
 function visualizeBuildingsWithoutFirebase(buildingFeatures) {    
@@ -870,22 +860,27 @@ function visualizeBuildingsWithData(checkedBuildings) {
             'success'
         );
     } else {
-        updateStatus(`${stats.total}`);
+        updateStatus(`Будівель: ${stats.total}`, 'normal');
     }
     
+    console.log('📊 Статистика будівель:', stats);
+    console.log('🏛️ Детальні дані будівель:', checkedBuildings.map(b => ({
         osm_id: b.feature.properties.osm_id,
         name: b.feature.properties.name,
         optimize: b.optimize
     })));
 }
+
 // ==================== ЗАВАНТАЖЕННЯ ДАНИХ ОСВІТЛЕННЯ ====================
 
 async function loadLightingData(streetName) {
     if (!map) {
+        console.warn("⚠️ Карта не ініціалізована");
         return;
     }
     
     if (!streetName) {
+        console.warn("⚠️ Назва вулиці/парку не передана");
         return;
     }
     
@@ -897,9 +892,10 @@ async function loadLightingData(streetName) {
             return;
         }
         
+        console.log("ℹ️ Дані освітлення не знайдено");
     } catch (fbError) {
+        console.error("❌ Помилка завантаження освітлення:", fbError);
     }
-    
 }
 
 async function loadFromFirebase(streetName) {
@@ -948,6 +944,7 @@ async function loadFromFirebase(streetName) {
                 const lightsCSV = data.lights;
                 
                 if (lightsCSV) {
+                    console.log(`✅ Знайдено дані освітлення в ${primaryCollection}:`, variant);
                     return parseCSVLights(lightsCSV);
                 }
             }
@@ -965,14 +962,17 @@ async function loadFromFirebase(streetName) {
                 const lightsCSV = data.lights;
                 
                 if (lightsCSV) {
+                    console.log(`✅ Знайдено дані освітлення в ${secondaryCollection}:`, variant);
                     return parseCSVLights(lightsCSV);
                 }
             }
         }
         
+        console.log(`ℹ️ Дані освітлення не знайдено для "${streetName}"`);
         return null;
         
     } catch (error) {
+        console.error("❌ Помилка Firebase запиту:", error);
         throw error;
     }
 }
@@ -981,6 +981,7 @@ async function loadFromFirebase(streetName) {
 
 async function saveToFirebase(streetName, lightsData) {
     if (!db) {
+        console.warn("⚠️ Firebase не підключено, пропускаю збереження");
         return;
     }
 
@@ -1017,8 +1018,10 @@ async function saveToFirebase(streetName, lightsData) {
             source: 'api'
         });
         
+        console.log(`✅ Дані освітлення збережено в ${collection}/${normalizedName}`);
     } catch (error) {
-// Не кидаємо помилку, щоб не перервати візуалізацію
+        console.error("❌ Помилка збереження в Firebase:", error);
+        // Не кидаємо помилку, щоб не перервати візуалізацію
     }
 }
 
@@ -1041,6 +1044,7 @@ function parseCSVLights(csvString) {
             let y = parseFloat(parts[1]);
             
             if (isNaN(x) || isNaN(y)) {
+                console.warn(`⚠️ Пропущено некоректний запис #${index}: ${entry}`);
                 return;
             }
             
@@ -1059,6 +1063,7 @@ function parseCSVLights(csvString) {
             
             // Перевірка що координати в межах Львова
             if (lat < 49.7 || lat > 50.0 || lng < 23.8 || lng > 24.2) {
+                console.warn(`⚠️ Координати поза межами Львова: ${lat}, ${lng}`);
             }
             
             lights.push({
@@ -1071,6 +1076,7 @@ function parseCSVLights(csvString) {
         }
     });
     
+    console.log(`✅ Розпарсено ${lights.length} світильників з CSV`);
     return lights;
 }
 
@@ -1081,14 +1087,17 @@ function visualizeLights(lightsData) {
     if (lightsLayer) {
         lightsLayer.clearLayers();
     } else {
+        console.error("❌ lightsLayer не ініціалізовано");
         return;
     }
     
     if (!map) {
+        console.error("❌ Карта не ініціалізована");
         return;
     }
     
     if (!lightsData || lightsData.length === 0) {
+        console.warn("⚠️ Немає даних для візуалізації");
         return;
     }
     
@@ -1099,6 +1108,7 @@ function visualizeLights(lightsData) {
         
         // Перевірка валідності координат
         if (isNaN(lat) || isNaN(lng)) {
+            console.warn(`⚠️ Пропущено світильник #${index} через некоректні координати`);
             return;
         }
         
@@ -1158,6 +1168,8 @@ function visualizeLights(lightsData) {
             console.error(`❌ Помилка додавання світильника ${index}:`, error);
         }
     });
+    
+    console.log(`✅ Візуалізовано ${addedCount} світильників`);
     
     // КРИТИЧНО: Примусово оновлюємо карту
     if (map) {
@@ -1225,9 +1237,10 @@ async function findCrossings() {
             }
         });
         
-        
+        updateStatus(`Знайдено переходів: ${count}`, 'success');
     } catch (error) {
         console.error("Помилка пошуку переходів:", error);
+        updateStatus("Помилка пошуку переходів", 'error');
     }
 }
 
@@ -1302,12 +1315,10 @@ document.getElementById('streetNamePart').addEventListener('keypress', function(
     }
 });
 
-
 // КРИТИЧНО: Перевіряємо наявність proj4
 if (typeof proj4 === 'undefined') {
+    console.warn("⚠️ proj4js не завантажено, використовуватиметься fallback конвертація");
 } else {
     initProj4();
-
+    console.log("✅ proj4js ініціалізовано");
 }
-
-
