@@ -339,40 +339,52 @@ async function handleSearchClick() {
 }
 
 function showMap() {
-    document.getElementById('welcomeScreen').classList.add('hidden');
-    
-    // Робимо контейнери активними
+    const welcomeScreen = document.getElementById('welcomeScreen');
     const mapContainer = document.getElementById('mapContainer');
     const bottomPanel = document.getElementById('bottomPanel');
     
-    mapContainer.classList.add('active');
-    bottomPanel.classList.add('active');
-
-    // КРИТИЧНО ВАЖЛИВО: Оновлюємо розміри карти після появи
+    // Плавне зникнення вітального екрану
+    welcomeScreen.style.opacity = '0';
+    
     setTimeout(() => {
-        if (map) {
-            map.invalidateSize();
-        }
-    }, 400); // Чекаємо завершення CSS анімації (0.3s)
+        welcomeScreen.classList.add('hidden');
+        welcomeScreen.style.opacity = '1'; // Повертаємо для наступного разу
+        
+        // Показуємо карту та панель
+        mapContainer.classList.add('active');
+        bottomPanel.classList.add('active');
+        
+        // Затримка для візуалізації даних + оновлення розмірів карти
+        setTimeout(() => {
+            if (map) {
+                map.invalidateSize();
+            }
+        }, 450); // 300ms CSS анімація + 150ms буфер для візуалізації
+    }, 300); // Чекаємо завершення fade-out
 }
 
 function initMap() {
     map = L.map('map', { 
         maxBounds: LVIV_BOUNDS, 
-        maxBoundsViscosity: 1.0 
+        maxBoundsViscosity: 1.0,
+        fadeAnimation: true,
+        zoomAnimation: true,
+        markerZoomAnimation: true
     }).setView([49.8419, 24.0315], 13);
     
     darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
-        attribution: '&copy; OSM contributors' 
+        attribution: '&copy; OSM contributors',
+        fadeAnimation: true
     });
     
     lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { 
-        attribution: '&copy; OSM contributors' 
+        attribution: '&copy; OSM contributors',
+        fadeAnimation: true
     });
     
     darkLayer.addTo(map);
     
-    // КРИТИЧНО: Створюємо всі шари та гарантовано додаємо їх на карту
+    // Створюємо всі шари та гарантовано додаємо їх на карту
     mainLayer = L.layerGroup().addTo(map);
     crossingLayer = L.layerGroup().addTo(map);
     buildingLayer = L.layerGroup().addTo(map);
@@ -380,26 +392,46 @@ function initMap() {
 }
 
 function resetMap() {
-    if (mainLayer) mainLayer.clearLayers();
-    if (buildingLayer) buildingLayer.clearLayers();
-    if (crossingLayer) crossingLayer.clearLayers();
-    if (lightsLayer) lightsLayer.clearLayers();
+    const mapContainer = document.getElementById('mapContainer');
+    const bottomPanel = document.getElementById('bottomPanel');
+    const welcomeScreen = document.getElementById('welcomeScreen');
     
-    savedStreetGeoJSON = null; 
-    savedStreetName = null;
-    
-    const suggestionsList = document.getElementById('suggestionsList');
-    suggestionsList.style.display = 'none';
-    
+    // Плавне закриття рекомендацій та кнопок
     document.getElementById('recommendations').style.display = 'none';
     document.getElementById('crossingsBtn').style.display = 'none';
-    document.getElementById('mapContainer').classList.remove('active');
-    document.getElementById('bottomPanel').classList.remove('active');
+    document.getElementById('suggestionsList').style.display = 'none';
     document.getElementById('streetNamePart').value = '';
     
-    setTimeout(() => { 
-        document.getElementById('welcomeScreen').classList.remove('hidden'); 
-    }, 300);
+    // Плавне зникнення карти та панелі
+    mapContainer.style.opacity = '0';
+    bottomPanel.style.opacity = '0';
+    
+    setTimeout(() => {
+        // Очищуємо шари
+        if (mainLayer) mainLayer.clearLayers();
+        if (buildingLayer) buildingLayer.clearLayers();
+        if (crossingLayer) crossingLayer.clearLayers();
+        if (lightsLayer) lightsLayer.clearLayers();
+        
+        savedStreetGeoJSON = null; 
+        savedStreetName = null;
+        
+        // Ховаємо контейнери
+        mapContainer.classList.remove('active');
+        bottomPanel.classList.remove('active');
+        
+        // Повертаємо opacity для наступного разу
+        mapContainer.style.opacity = '1';
+        bottomPanel.style.opacity = '1';
+        
+        // Показуємо вітальний екран
+        welcomeScreen.classList.remove('hidden');
+        welcomeScreen.style.opacity = '0';
+        
+        setTimeout(() => {
+            welcomeScreen.style.opacity = '1';
+        }, 50);
+    }, 300); // Чекаємо завершення fade-out
 }
 
 // ==================== QUICK SEARCH ====================
@@ -1184,65 +1216,7 @@ function visualizeLights(lightsData) {
     }
 }
 
-// ==================== ПОШУК ПЕРЕХОДІВ ====================
 
-async function findCrossings() {
-    if (!savedAreaId || !savedStreetName) return;
-    
-    updateStatus(`Шукаю переходи для ${savedStreetName}...`);
-    
-    const query = `
-        [out:json][timeout:60];
-        area(${savedAreaId})->.searchArea;
-        way["name"="${savedStreetName}"]["highway"](area.searchArea)->.street;
-        node["highway"="crossing"](around.street:2);
-        out geom;
-    `;
-    
-    try {
-        const data = await fetchWithRetry(
-            'https://overpass-api.de/api/interpreter', 
-            {method: 'POST', body: "data=" + encodeURIComponent(query)}
-        );
-        
-        if (!data.elements) {
-            return updateStatus("Переходи не знайдено");
-        }
-        
-        const streetLines = savedStreetGeoJSON.features; 
-        let count = 0;
-        
-        data.elements.forEach(el => {
-            if (el.type === 'node') {
-                const p = turf.point([el.lon, el.lat]);
-                let minD = Infinity;
-                
-                streetLines.forEach(l => { 
-                    const d = turf.pointToLineDistance(p, l, {units: 'meters'}); 
-                    if(d < minD) minD = d; 
-                });
-                
-                if(minD <= 2) {
-                    const mk = L.marker([el.lat, el.lon], {
-                        icon: L.divIcon({
-                            className: 'crossing-icon', 
-                            html: '🟢', 
-                            iconSize: [20, 20]
-                        })
-                    });
-                    mk.bindPopup("<b>Пішохідний перехід</b>");
-                    mk.addTo(crossingLayer);
-                    count++;
-                }
-            }
-        });
-        
-        updateStatus(`Знайдено переходів: ${count}`, 'success');
-    } catch (error) {
-        console.error("Помилка пошуку переходів:", error);
-        updateStatus("Помилка пошуку переходів", 'error');
-    }
-}
 
 // ==================== АВТОДОПОВНЕННЯ ====================
 
