@@ -80,6 +80,9 @@ const MAX_SEARCH_DIST = 40;
 const DENSITY_STEP = 10;
 const BUILDING_SEARCH_RADIUS = 25;
 const LVIV_BOUNDS = [[49.75, 23.85], [49.95, 24.15]];
+const MIN_ZOOM = 11;      // Мінімальний зум (можна побачити весь Львів)
+const MAX_ZOOM = 20;      // Максимальний зум (дуже детальний вигляд)
+const DEFAULT_ZOOM = 13;  // Початковий зум
 
 const UTM_ZONE = 34;
 const UTM_FALSE_EASTING = 500000;
@@ -93,6 +96,28 @@ let savedStreetGeoJSON = null;
 let map = null, darkLayer = null, lightLayer = null, mainLayer = null;
 let crossingLayer = null, buildingLayer = null, lightsLayer = null;
 
+// ==================== РОЗУМНА ОБРОБКА НАЗВ ====================
+
+/**
+ * Видаляє номери будинків та інші числові суфікси з назви вулиці
+ * Приклади:
+ * "Устияновича 6" -> "Устияновича"
+ * "Шевченка 4а" -> "Шевченка"
+ * "Личаківська 123б" -> "Личаківська"
+ */
+function removeHouseNumber(streetName) {
+    if (!streetName) return "";
+    
+    // Видаляємо числа та комбінації цифр з буквами в кінці
+    // Патерн: пробіл + цифри + опціональна буква (а, б, в, A, B, C тощо)
+    return streetName
+        .replace(/\s+\d+[а-яіїєґА-ЯІЇЄҐA-Za-z]?$/i, '')
+        .trim();
+}
+
+/**
+ * Нормалізує назву вулиці для пошуку
+ */
 function normalizeStreetName(name) {
     if (!name) {
         return "";
@@ -106,7 +131,11 @@ function normalizeStreetName(name) {
 }
 
 function createFlexibleSearchPattern(searchName) {
-    let cleaned = searchName
+    // Спочатку видаляємо номер будинку
+    let cleaned = removeHouseNumber(searchName);
+    
+    // Потім видаляємо префікси
+    cleaned = cleaned
         .replace(/^(вул\.|вулиця|проспект|просп\.|площа|парк|пл\.|м-н)\s*/i, '')
         .trim();
     
@@ -127,11 +156,15 @@ function createFlexibleSearchPattern(searchName) {
 function matchesSearchQuery(name, searchQuery) {
     if (!name || !searchQuery) return false;
     
-    const normalizedName = name.toLowerCase()
+    // Видаляємо номери будинків з обох назв
+    const cleanedName = removeHouseNumber(name);
+    const cleanedQuery = removeHouseNumber(searchQuery);
+    
+    const normalizedName = cleanedName.toLowerCase()
         .replace(/^(вул\.|вулиця|проспект|просп\.|площа|парк|пл\.|м-н)\s*/i, '')
         .trim();
     
-    const normalizedSearch = searchQuery.toLowerCase()
+    const normalizedSearch = cleanedQuery.toLowerCase()
         .replace(/^(вул\.|вулиця|проспект|просп\.|площа|парк|пл\.|м-н)\s*/i, '')
         .trim();
     
@@ -318,18 +351,67 @@ async function handleSearchClick() {
         setTimeout(() => {
             if (map && savedStreetGeoJSON) {
                 map.invalidateSize();
-                const bbox = turf.bbox(savedStreetGeoJSON);
-                map.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], {
-                    padding: [50, 50],
-                    animate: true,
-                    duration: 2.5
+                
+                // Збираємо ВСІ елементи для розрахунку bounds
+                const allFeatures = [];
+                
+                // 1. Додаємо вулицю/парк
+                if (savedStreetGeoJSON && savedStreetGeoJSON.features) {
+                    allFeatures.push(...savedStreetGeoJSON.features);
+                }
+                
+                // 2. Додаємо будівлі (якщо є)
+                buildingLayer.eachLayer(layer => {
+                    if (layer.feature) {
+                        allFeatures.push(layer.feature);
+                    }
                 });
+                
+                // 3. Додаємо світильники (якщо є)
+                lightsLayer.eachLayer(layer => {
+                    if (layer.getLatLng) {
+                        const latLng = layer.getLatLng();
+                        allFeatures.push(turf.point([latLng.lng, latLng.lat]));
+                    }
+                });
+                
+                // 4. Додаємо основні елементи (парки, доріжки)
+                mainLayer.eachLayer(layer => {
+                    if (layer.feature) {
+                        allFeatures.push(layer.feature);
+                    }
+                });
+                
+                // Якщо є елементи, обчислюємо їх загальний bbox
+                if (allFeatures.length > 0) {
+                    const combinedFeatures = turf.featureCollection(allFeatures);
+                    const bbox = turf.bbox(combinedFeatures);
+                    
+                    // Адаптивний padding залежно від розміру екрану
+                    const isMobile = window.innerWidth <= 768;
+                    const paddingValue = isMobile ? [25, 25] : [60, 60];
+                    
+                    map.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], {
+                        padding: paddingValue,
+                        animate: true,
+                        duration: 2.5
+                    });
+                    
+                    console.log(`✅ Показано ${allFeatures.length} елементів на карті`);
+                } else {
+                    // Fallback: якщо немає елементів, показуємо тільки вулицю
+                    const bbox = turf.bbox(savedStreetGeoJSON);
+                    const isMobile = window.innerWidth <= 768;
+                    const paddingValue = isMobile ? [25, 25] : [60, 60];
+                    
+                    map.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], {
+                        padding: paddingValue,
+                        animate: true,
+                        duration: 2.5
+                    });
+                }
             }
-        }, 100);
-
-        setTimeout(() => {
-            setButtonState('default');
-        }, 500);
+        }, 400); // Збільшили затримку до 300ms, щоб всі елементи встигли додатися
 
     } catch (error) {
         console.error("Помилка пошуку:", error);
@@ -365,21 +447,40 @@ function showMap() {
 
 function initMap() {
     map = L.map('map', { 
-        maxBounds: LVIV_BOUNDS, 
-        maxBoundsViscosity: 1.0,
+        // Обмеження меж карти (не можна вийти за межі Львова)
+        maxBounds: LVIV_BOUNDS,
+        maxBoundsViscosity: 1.0,  // Повна жорсткість меж (не можна виїхати за межі)
+        
+        // Налаштування зуму
+        minZoom: MIN_ZOOM,  // Мінімальне наближення
+        maxZoom: MAX_ZOOM,  // Максимальне наближення
+        
+        // Анімації
         fadeAnimation: true,
         zoomAnimation: true,
-        markerZoomAnimation: true
-    }).setView([49.8419, 24.0315], 13);
+        markerZoomAnimation: true,
+        
+        // Додаткові налаштування для кращого UX
+        zoomControl: true,           // Показувати кнопки +/-
+        scrollWheelZoom: true,       // Зум колесом миші
+        doubleClickZoom: true,       // Зум подвійним кліком
+        touchZoom: true,             // Зум на тачскрінах
+        dragging: true,              // Можливість перетягування
+        
+    }).setView([49.8419, 24.0315], DEFAULT_ZOOM);
     
     darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
         attribution: '&copy; OSM contributors',
-        fadeAnimation: true
+        fadeAnimation: true,
+        minZoom: MIN_ZOOM,
+        maxZoom: MAX_ZOOM
     });
     
     lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { 
         attribution: '&copy; OSM contributors',
-        fadeAnimation: true
+        fadeAnimation: true,
+        minZoom: MIN_ZOOM,
+        maxZoom: MAX_ZOOM
     });
     
     darkLayer.addTo(map);
@@ -389,6 +490,11 @@ function initMap() {
     crossingLayer = L.layerGroup().addTo(map);
     buildingLayer = L.layerGroup().addTo(map);
     lightsLayer = L.layerGroup().addTo(map);
+    
+    // Додаємо обробник для повернення у межі при спробі виїхати
+    map.on('drag', function() {
+        map.panInsideBounds(LVIV_BOUNDS, { animate: false });
+    });
 }
 
 function resetMap() {
@@ -460,7 +566,10 @@ async function analyzeStreet() {
         throw new Error("Некоректні дані"); 
     }
     
-    updateStatus(`Шукаю ${isParkSearch ? "парк" : "вулицю"} "${namePart}"...`);
+    // Видаляємо номер будинку перед пошуком
+    const cleanedNamePart = removeHouseNumber(namePart);
+    
+    updateStatus(`Шукаю ${isParkSearch ? "парк" : "вулицю"} "${cleanedNamePart}"...`);
 
     try {
         // --- ЕТАП 1: Nominatim & OSM ---
@@ -472,7 +581,7 @@ async function analyzeStreet() {
         savedAreaId = 3600000000 + parseInt(cityData[0].osm_id);
 
         let query = '';
-        const searchPattern = createFlexibleSearchPattern(namePart);
+        const searchPattern = createFlexibleSearchPattern(cleanedNamePart);
 
         // Формування запиту
         if (isParkSearch) {
@@ -487,9 +596,9 @@ async function analyzeStreet() {
         
         // --- ЕТАП 2: Обробка геометрії (малюємо на прихованій карті) ---
         if (isParkSearch) {
-            await processParkVisualization(data, namePart);
+            await processParkVisualization(data, cleanedNamePart);
         } else {
-            await processStreetVisualization(data, namePart);
+            await processStreetVisualization(data, cleanedNamePart);
         }
 
         // --- ЕТАП 3: Завантаження Firebase ---
@@ -1234,7 +1343,10 @@ streetInput.addEventListener('input', function() {
 
     debounceTimer = setTimeout(async () => {
         try {
-            const url = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&format=json&limit=5&dedupe=1`;
+            // Видаляємо номер будинку перед пошуком підказок
+            const cleanedQuery = removeHouseNumber(query);
+            
+            const url = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(cleanedQuery)}&city=${encodeURIComponent(city)}&format=json&limit=5&dedupe=1`;
             const response = await fetch(url);
             const data = await response.json();
             
